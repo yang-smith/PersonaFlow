@@ -1,0 +1,11 @@
+streamlit
+openai
+chromadb
+feedparser
+APScheduler
+httpx
+markdownify
+readabilipy
+pydantic 
+tiktoken
+aiolimiter
