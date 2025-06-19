@@ -1,0 +1,130 @@
+
+
+好的，没问题。从 Streamlit 迁移到 FastAPI，意味着我们要把后端彻底变成一个“无头”的服务，只通过 API 接口与外界对话。这个转变非常关键，它让后端变得更加纯粹和独立。
+
+下面我帮你整理一份给后端开发的 API 设计说明。这份文档会明确定义每个“接口”的作用、输入和输出，让前端和后端可以并行开发，互不影响。
+
+我注意到你的数据表草稿里有些字段名和我们之前讨论的略有出入（比如 `socre`, `embedding`），我会以你最新的草稿为准，并做一些小的标准化调整，让它更符合API设计的惯例。
+
+---
+
+### **后端 API 开发说明 (基于 FastAPI)**
+
+**项目代号：** PersonaFlow (暂定)
+
+**致开发者：**
+
+你好，朋友。
+
+项目已验证核心逻辑，现将后端重构为基于 FastAPI 的 API 服务，以支持一个独立的、体验更佳的前端。
+
+后端的核心职责包括：**后台数据处理（抓取、AI分析、入队）**和**提供实时API接口**。数据存储依然使用 SQLite。
+
+请基于以下说明进行开发。
+
+---
+
+#### **一、 数据模型 (Pydantic Models & SQLAlchemy Models)**
+
+请为以下数据表结构，创建对应的 SQLAlchemy 模型（用于数据库操作）和 Pydantic 模型（用于API的数据校验和序列化）。
+
+**1. `Source` (订阅源)**
+    *   `id`: 主键
+    *   `url`: `str`, UNIQUE
+    *   `type`: `str` (建议使用 Enum: `'RSS'`, `'WEB'`)
+    *   `name`: `str`
+    *   `last_fetched_at`: `datetime`
+
+**2. `Article` (文章)**
+    *   `id`: 主键
+    *   `source_id`: `int`, Foreign Key to `Source.id`
+    *   `url`: `str`, UNIQUE
+    *   `title`: `str`
+    *   `content`: `str` (原始内容)
+    *   `ai_summary`: `str`, NULLABLE (AI生成的摘要)
+    *   `ai_quality_score`: `float`, NULLABLE (这个字段看似是AI品质分，我们统一叫 `ai_quality_score` 以免混淆)
+    *   `ai_rationale`: `str`, NULLABLE (AI评分理由)
+    *   `published_at`: `datetime`
+    *   `interaction_status`: `int`, Default `0` (0:未交互, 1:喜欢, 2:不喜欢, 3:跳过)
+    *   `embedding`: `bytes` (BLOB) - **注意：** 此处我们决定将向量直接存入SQLite，因为数据量可控。
+
+**3. `User` (用户)**
+    *   `id`: `int`, 主键, Default `1`
+    *   `embedding`: `bytes` (BLOB) - (用户意图向量)
+
+**4. `FeedQueue` (推送队列)**
+    *   `id`: 主键
+    *   `user_id`: `int`, Foreign Key to `User.id`
+    *   `article_id`: `int`, Foreign Key to `Article.id`
+    *   `final_score`: `float`
+    *   `status`: `str`, Default `'unread'` (建议使用 Enum: `'unread'`, `'liked'`, `'skipped'`)
+    *   `created_at`: `datetime`
+
+---
+
+#### **二、 后台定时任务 (`background_worker.py`)**
+
+这是一个独立于 FastAPI 应用、按时（如每12小时）运行的脚本。
+
+**核心流程:**
+
+1.  **抓取 (Fetch)**: 从 `Source` 表获取所有启用的源，抓取新文章。
+2.  **入库 (Store)**: 将新文章存入 `Article` 表，注意通过 `url` 避免重复。
+3.  **处理 (Process)**: 对每一篇新入库的文章：
+    *   调用 `llm_client.get_embedding()` 生成文章向量，存入 `Article.embedding`。
+    *   调用 LLM 生成 `ai_quality_score` 和 `ai_rationale` 并存入对应字段。
+4.  **筛选入队 (Queue)**:
+    *   从 `User` 表读取 `embedding` 作为 `user_intent_vector`。
+    *   遍历所有新处理的文章，计算 `similarity_score` (与 `user_intent_vector` 的余弦相似度)。
+    *   根据公式 `final_score = (w1 * similarity_score) + (w2 * ai_quality_score)` 计算综合分 (权重 `w1`, `w2` 可作为配置项)。
+    *   若 `final_score` > `THRESHOLD` (阈值可配置，如0.7)，则将该 `article_id` 和 `final_score` 存入 `FeedQueue` 表，状态为 `unread`。
+
+---
+
+#### **三、 API 端点设计 (FastAPI Endpoints)**
+
+以下是需要暴露给前端的API接口。
+
+**A. Feed (信息流相关)**
+
+*   **`GET /api/feed`**: 获取用户的待读 Feed 队列。
+    *   **作用**: 前端启动时调用，获取所有待读文章。
+    *   **逻辑**: 查询 `FeedQueue` 中 `status = 'unread'` 的记录，并关联 `Article`, `Source` 表，返回一个文章对象列表。
+    *   **成功响应 (200 OK)**: `List[ArticleSchema]` (ArticleSchema 包含文章和来源信息)。
+
+*   **`POST /api/feed/action`**: 对一篇文章进行操作（喜欢/跳过）。
+    *   **作用**: 用户在前端进行双击或划走操作时调用。
+    *   **请求体 (Request Body)**:
+        ```json
+        {
+          "article_id": 123,
+          "action": "like" // "like" 或 "skip"
+        }
+        ```
+    *   **逻辑**:
+        1.  根据 `action` 更新 `Article` 表中对应 `article_id` 的 `interaction_status` (1:喜欢, 3:跳过)。
+        2.  同时更新 `FeedQueue` 表中对应 `article_id` 的 `status` ('liked' 或 'skipped')。
+        3.  **如果 `action` 是 `'like'`**，则触发一个异步任务：重新计算用户的 `intent_vector` 并更新 `User` 表。
+           (计算方式：`new_vector = old_vector * (1-α) + article_vector * α`, `α` 是学习率)
+    *   **成功响应 (200 OK)**: `{ "status": "success", "message": "Action recorded" }`
+
+**B. Sources (订阅源管理)**
+
+*   **`GET /api/sources`**: 获取所有订阅源。
+*   **`POST /api/sources`**: 添加一个新的订阅源。
+*   **`DELETE /api/sources/{source_id}`**: 删除一个订阅源。
+*   **`PUT /api/sources/{source_id}`**: 更新一个订阅源（如修改名称，或禁用/启用）。
+
+**C. Settings (系统配置)**
+
+*   **`GET /api/settings/prompt`**: 获取当前的 AI System Prompt。
+*   **`POST /api/settings/prompt`**: 更新 AI System Prompt。
+    *   **请求体**: `{ "prompt": "You are a helpful assistant..." }`
+
+---
+
+**总结**
+
+这份文档定义了后端服务的三个主要部分：数据结构、后台任务、实时API。请以此为蓝图进行开发。清晰的接口设计将确保我们能顺利地将后端逻辑与一个体验卓越的前端分离开来，并独立演进。
+
+如果开发过程中有任何不清晰之处，我们随时沟通。

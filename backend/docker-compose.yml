@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  personaflow-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - DEBUG=false
+      - DATABASE_PATH=/app/data/personaflow.db
+      - LOG_FILE=/app/logs/personaflow.log
+    restart: unless-stopped 

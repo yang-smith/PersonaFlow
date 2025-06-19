@@ -266,6 +266,15 @@ async def ai_chat_stream_async(message: Union[str, List[Dict]],
     async for chunk in _ai_chat.chat_stream_async(message, model, response_format, tools):
         yield chunk
 
+
+def get_embedding(text, model="text-embedding-3-small"):
+    client = OpenAI(base_url="https://www.dmxapi.com/v1/", api_key=os.environ.get("DMXAPI_API_KEY"))
+    response = client.embeddings.create(
+        model=model,
+        input=text
+    )
+    return response.data[0].embedding
+
 # Token处理便捷函数
 def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     """计算文本中的token数量 - 便捷函数"""

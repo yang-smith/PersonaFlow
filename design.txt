@@ -1,0 +1,121 @@
+
+
+
+数据结构
+
+SQlite存储
+
+source 表 
+id (主键)
+url (TEXT, UNIQUE): RSS源的网址，必须是唯一的，防止重复添加。
+type: RSS或者 web url
+name (TEXT): 给这个源起个你好认的名字，比如“老王的博客”。
+last_fetched_at (DATETIME): 
+
+
+
+文章 表
+id
+source_id (INTEGER, Foreign Key to Source.id)
+url (TEXT, UNIQUE)
+title
+content
+ai_summary
+socre
+ai_rationale
+published_at (DATETIME): 文章的发布时间
+interaction_status (INTEGER, Default 0): 这个字段比 is_read 更强大。我们可以定义：0=未交互, 1=已喜欢, 2=已不喜欢, 3=已跳过。
+embedding
+
+
+user 表
+id
+embedding
+
+
+feed 表
+队列
+id (主键)
+
+user_id (INTEGER): 虽然现在只有一个用户，但好习惯要有。
+
+article_id (INTEGER, Foreign Key to Article.id): 指向那篇被选中的文章。
+
+final_score (FLOAT): 当时计算出的综合分，可以存下来做参考。
+
+status (TEXT, Default 'unread'): 记录这篇文章在队列里的状态，比如 'unread' (未读), 'read' (已读)。
+
+created_at (DATETIME): 入队时间。
+
+
+
+
+
+
+1. 后台任务 (background_worker.py) 的职责加重了
+
+后台任务不再只是“抓取”和“向量化”，它现在还要负责“预筛选”和“入队”。
+
+它的新流程应该是这样的（比如十二小时执行一次）：
+
+
+抓取 & 向量化：(不变) 从RSS源（来自source表）抓新文章，存元数据到SQLite，然后把文章内容向量化。
+向量化使用llm_client里面的get_embedding函数即可
+
+AI 评分（预处理）：(新步骤) 对每一篇新向量化好的文章，立刻调用LLM进行“AI人格化”打分，拿到 ai_quality_score。这一步是必须的，因为没有这个分数，就无法做后续的加权计算。
+
+加权计算 & 决策：
+读取用户的 intent_vector。
+对每篇新文章，计算它和 intent_vector 的向量相似度 similarity_score。
+根据我们的公式 final_score = (w1 * similarity_score) + (w2 * ai_quality_score)，计算出最终的综合得分。
+判断：如果 final_score 大于我们设定的一个阈值（比如 0.7），就意味着“这篇文章质量和相关性都足够好，值得推送给用户”。
+
+入队：将这篇通过了阈值考验的文章 id，加入到一个专门的“待读队列”里。
+
+
+3. 前端 (app.py) 的工作就变简单了
+
+前端现在要做的事情非常纯粹：
+
+
+应用启动时，直接去查询 feed_queue 表里所有 status 为 'unread' 的文章。
+
+根据 article_id 关联查询 articles 表，获取标题、内容等信息。
+
+把这些文章展示出来。
+
+用户在界面上进行“喜欢/不喜欢”的操作后，除了更新 user_intent_vector 之外，还要更新 feed_queue 表里对应记录的 status 为 'read'。这样，下次刷新，它就不会再出现了。
+
+
+
+除了feed流，前端还要有一个setting的内容，里面用户可以自由添加删除 源、编辑system prompt人设。
+
+
+
+
+产品气质
+
+专注、道意
+
+活在当下，专注于眼前。符合直觉。
+
+一次一张卡片
+独特的“节奏”
+1. 卡片的设计要沉静、留白要足，字体要优雅。它给人的第一感觉应该是“这是一份需要静心阅读的东西”，而不是“快来看！有乐子！”。
+2. 点击卡片，是进入一个“沉浸阅读模式”
+3. 双击喜欢，划走标记已读，并进入下一个。“划走”的动画，可以做得更“重”一些。不是轻飘飘地飞走，而是像把一本书缓缓合上，放回书架的感觉。这个细节，在潜意识里告诉用户：“你做了一个重要的决定。”
+
+终结页
+你划走了最后一张为你准备的卡片，屏幕上出现的不是一个新的卡片，而是一个非常简洁、干净的页面。
+“林间拾穗毕，愿君满载归。”
+一杯热茶，水汽缓缓上升。
+
+
+
+没问题。写给开发者的东西，就得清晰、直接，把“做什么”和“为什么这么做”都讲明白。
+
+用 Streamlit 来做这个，挺有意思的。它本身就带有一种简洁的气质，但要实现咱们想要的这种高度定制化的交互（比如滑动、双击），可能需要借助一些社区组件或者花点心思。不管怎样，我们先把这个“理想态”的需求描述清楚。
+
+下面这份文档，你可以直接拿去用或者修改。我特意分成了“功能需求”和“体验与气质”，这样结构更清楚。
+
+---
