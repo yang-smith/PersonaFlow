@@ -336,3 +336,22 @@
 2025-06-20 10:48:05 | INFO | background_tasks:run_full_update_cycle:321 - 数据库统计: {'total_sources': 2, 'total_articles': 56, 'vectorized_articles': 56, 'scored_articles': 56, 'interacted_articles': 0, 'unread_feed': 52, 'has_user_profile': True}
 2025-06-20 10:48:05 | INFO | background_tasks:run_full_update_cycle:323 - 本次任务完成 - 新文章: 50, 向量化: 50, 评分: 50, 入队: 46
 2025-06-20 10:48:05 | INFO | background_tasks:run_full_update_cycle:330 - === 后台任务周期完成 2025-06-20 10:48:05.718582 ===
+2025-06-20 17:01:14 | INFO | background_tasks:run_full_update_cycle:277 - === 开始后台任务周期 2025-06-20 17:01:14.736978 ===
+2025-06-20 17:01:14 | INFO | background_tasks:run_full_update_cycle:281 - 1. 开始抓取RSS文章...
+2025-06-20 17:01:14 | INFO | background_tasks:fetch_rss_articles:29 - 正在抓取RSS源: 宝玉
+2025-06-20 17:01:19 | INFO | background_tasks:fetch_rss_articles:65 - 从 宝玉 获取到 0 篇文章
+2025-06-20 17:01:19 | INFO | background_tasks:fetch_rss_articles:29 - 正在抓取RSS源: 阮一峰
+2025-06-20 17:01:20 | INFO | background_tasks:fetch_rss_articles:65 - 从 阮一峰 获取到 6 篇文章
+2025-06-20 17:01:20 | INFO | background_tasks:run_full_update_cycle:305 - 本次抓取到 0 篇新文章
+2025-06-20 17:01:20 | INFO | background_tasks:run_full_update_cycle:308 - 2. 开始向量化文章...
+2025-06-20 17:01:20 | INFO | background_tasks:vectorize_articles:100 - 开始向量化 0 篇文章
+2025-06-20 17:01:20 | INFO | background_tasks:vectorize_articles:144 - 完成向量化 0 篇文章
+2025-06-20 17:01:20 | INFO | background_tasks:run_full_update_cycle:312 - 3. 开始AI评分...
+2025-06-20 17:01:20 | INFO | background_tasks:ai_score_articles:152 - 开始AI评分 0 篇文章
+2025-06-20 17:01:20 | INFO | background_tasks:ai_score_articles:197 - 完成AI评分 0 篇文章
+2025-06-20 17:01:20 | INFO | background_tasks:run_full_update_cycle:316 - 4. 开始计算推荐分数...
+2025-06-20 17:01:20 | INFO | background_tasks:calculate_final_scores_and_enqueue:229 - 开始计算 4 篇文章的推荐分数
+2025-06-20 17:01:21 | INFO | background_tasks:calculate_final_scores_and_enqueue:261 - 完成推荐计算，入队 0 篇文章
+2025-06-20 17:01:21 | INFO | background_tasks:run_full_update_cycle:321 - 数据库统计: {'total_sources': 2, 'total_articles': 56, 'vectorized_articles': 56, 'scored_articles': 56, 'interacted_articles': 0, 'unread_feed': 52, 'has_user_profile': True}
+2025-06-20 17:01:21 | INFO | background_tasks:run_full_update_cycle:323 - 本次任务完成 - 新文章: 0, 向量化: 0, 评分: 0, 入队: 0
+2025-06-20 17:01:21 | INFO | background_tasks:run_full_update_cycle:330 - === 后台任务周期完成 2025-06-20 17:01:21.434911 ===

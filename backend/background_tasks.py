@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import feedparser
 import re
+import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from contextlib import asynccontextmanager
@@ -23,11 +24,25 @@ class BackgroundTaskManager:
         self.is_running = False
         
     async def fetch_rss_articles(self, source: Dict) -> List[Dict]:
-        """从RSS源获取文章"""
+        """从RSS源获取文章 (通过代理)"""
         articles = []
+        # 这是我们神通广大的"特快邮局"地址
+        proxy_url = "http://127.0.0.1:7890"
+
         try:
-            app_logger.info(f"正在抓取RSS源: {source['name']}")
-            feed = feedparser.parse(source['url'])
+            app_logger.info(f"正在通过代理抓取RSS源: {source['name']}")
+
+            # 1. 使用 aiohttp 通过代理抓取内容
+            async with aiohttp.ClientSession() as session:
+                async with session.get(source['url'], proxy=proxy_url, timeout=30) as response:
+                    if response.status != 200:
+                        app_logger.warning(f"抓取 {source['name']} 失败，状态码: {response.status}")
+                        return []
+                    # 读取响应内容为文本
+                    feed_content = await response.text()
+
+            # 2. 将抓取到的文本内容交给 feedparser 解析
+            feed = feedparser.parse(feed_content)
             
             if feed.bozo and feed.bozo_exception:
                 app_logger.warning(f"RSS源 {source['name']} 解析警告: {feed.bozo_exception}")
