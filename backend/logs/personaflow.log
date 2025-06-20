@@ -355,3 +355,62 @@
 2025-06-20 17:01:21 | INFO | background_tasks:run_full_update_cycle:321 - 数据库统计: {'total_sources': 2, 'total_articles': 56, 'vectorized_articles': 56, 'scored_articles': 56, 'interacted_articles': 0, 'unread_feed': 52, 'has_user_profile': True}
 2025-06-20 17:01:21 | INFO | background_tasks:run_full_update_cycle:323 - 本次任务完成 - 新文章: 0, 向量化: 0, 评分: 0, 入队: 0
 2025-06-20 17:01:21 | INFO | background_tasks:run_full_update_cycle:330 - === 后台任务周期完成 2025-06-20 17:01:21.434911 ===
+2025-06-20 17:18:12 | INFO | background_tasks:run_full_update_cycle:290 - === 开始后台任务周期 2025-06-20 17:18:12.058464 ===
+2025-06-20 17:18:12 | INFO | background_tasks:run_full_update_cycle:294 - 1. 开始抓取RSS文章...
+2025-06-20 17:18:12 | INFO | background_tasks:fetch_rss_articles:31 - 正在通过代理抓取RSS源: 宝玉
+2025-06-20 17:18:15 | INFO | background_tasks:fetch_rss_articles:78 - 从 宝玉 获取到 50 篇文章
+2025-06-20 17:18:15 | INFO | background_tasks:fetch_rss_articles:31 - 正在通过代理抓取RSS源: 阮一峰
+2025-06-20 17:18:37 | ERROR | background_tasks:fetch_rss_articles:81 - 抓取RSS源 阮一峰 失败: Cannot connect to host feeds.feedburner.com:443 ssl:default [信号灯超时时间已到]
+2025-06-20 17:18:37 | ERROR | background_tasks:run_full_update_cycle:316 - 处理源 阮一峰 失败: 抓取RSS源失败: Cannot connect to host feeds.feedburner.com:443 ssl:default [信号灯超时时间已到]
+2025-06-20 17:18:37 | INFO | background_tasks:run_full_update_cycle:318 - 本次抓取到 0 篇新文章
+2025-06-20 17:18:37 | INFO | background_tasks:run_full_update_cycle:321 - 2. 开始向量化文章...
+2025-06-20 17:18:37 | INFO | background_tasks:vectorize_articles:113 - 开始向量化 0 篇文章
+2025-06-20 17:18:37 | INFO | background_tasks:vectorize_articles:157 - 完成向量化 0 篇文章
+2025-06-20 17:18:37 | INFO | background_tasks:run_full_update_cycle:325 - 3. 开始AI评分...
+2025-06-20 17:18:37 | INFO | background_tasks:ai_score_articles:165 - 开始AI评分 0 篇文章
+2025-06-20 17:18:37 | INFO | background_tasks:ai_score_articles:210 - 完成AI评分 0 篇文章
+2025-06-20 17:18:37 | INFO | background_tasks:run_full_update_cycle:329 - 4. 开始计算推荐分数...
+2025-06-20 17:18:37 | INFO | background_tasks:calculate_final_scores_and_enqueue:242 - 开始计算 4 篇文章的推荐分数
+2025-06-20 17:18:38 | INFO | background_tasks:calculate_final_scores_and_enqueue:274 - 完成推荐计算，入队 0 篇文章
+2025-06-20 17:18:38 | INFO | background_tasks:run_full_update_cycle:334 - 数据库统计: {'total_sources': 2, 'total_articles': 56, 'vectorized_articles': 56, 'scored_articles': 56, 'interacted_articles': 0, 'unread_feed': 52, 'has_user_profile': True}
+2025-06-20 17:18:38 | INFO | background_tasks:run_full_update_cycle:336 - 本次任务完成 - 新文章: 0, 向量化: 0, 评分: 0, 入队: 0
+2025-06-20 17:18:38 | INFO | background_tasks:run_full_update_cycle:343 - === 后台任务周期完成 2025-06-20 17:18:38.295570 ===
+2025-06-20 17:19:49 | INFO | background_tasks:run_full_update_cycle:292 - === 开始后台任务周期 2025-06-20 17:19:49.602352 ===
+2025-06-20 17:19:49 | INFO | background_tasks:run_full_update_cycle:296 - 1. 开始抓取RSS文章...
+2025-06-20 17:19:49 | INFO | background_tasks:fetch_rss_articles:33 - 正在通过代理抓取RSS源: 宝玉
+2025-06-20 17:19:49 | WARNING | background_tasks:fetch_rss_articles:39 - 抓取 宝玉 失败，状态码: 502
+2025-06-20 17:19:49 | INFO | background_tasks:fetch_rss_articles:33 - 正在通过代理抓取RSS源: 阮一峰
+2025-06-20 17:19:50 | INFO | background_tasks:fetch_rss_articles:80 - 从 阮一峰 获取到 6 篇文章
+2025-06-20 17:19:50 | INFO | background_tasks:run_full_update_cycle:320 - 本次抓取到 0 篇新文章
+2025-06-20 17:19:50 | INFO | background_tasks:run_full_update_cycle:323 - 2. 开始向量化文章...
+2025-06-20 17:19:50 | INFO | background_tasks:vectorize_articles:115 - 开始向量化 0 篇文章
+2025-06-20 17:19:50 | INFO | background_tasks:vectorize_articles:159 - 完成向量化 0 篇文章
+2025-06-20 17:19:50 | INFO | background_tasks:run_full_update_cycle:327 - 3. 开始AI评分...
+2025-06-20 17:19:50 | INFO | background_tasks:ai_score_articles:167 - 开始AI评分 0 篇文章
+2025-06-20 17:19:50 | INFO | background_tasks:ai_score_articles:212 - 完成AI评分 0 篇文章
+2025-06-20 17:19:50 | INFO | background_tasks:run_full_update_cycle:331 - 4. 开始计算推荐分数...
+2025-06-20 17:19:50 | INFO | background_tasks:calculate_final_scores_and_enqueue:244 - 开始计算 4 篇文章的推荐分数
+2025-06-20 17:19:50 | INFO | background_tasks:calculate_final_scores_and_enqueue:276 - 完成推荐计算，入队 0 篇文章
+2025-06-20 17:19:50 | INFO | background_tasks:run_full_update_cycle:336 - 数据库统计: {'total_sources': 2, 'total_articles': 56, 'vectorized_articles': 56, 'scored_articles': 56, 'interacted_articles': 0, 'unread_feed': 52, 'has_user_profile': True}
+2025-06-20 17:19:50 | INFO | background_tasks:run_full_update_cycle:338 - 本次任务完成 - 新文章: 0, 向量化: 0, 评分: 0, 入队: 0
+2025-06-20 17:19:50 | INFO | background_tasks:run_full_update_cycle:345 - === 后台任务周期完成 2025-06-20 17:19:50.970092 ===
+2025-06-20 17:23:20 | INFO | background_tasks:run_full_update_cycle:289 - === 开始后台任务周期 2025-06-20 17:23:20.737103 ===
+2025-06-20 17:23:20 | INFO | background_tasks:run_full_update_cycle:293 - 1. 开始抓取RSS文章...
+2025-06-20 17:23:20 | INFO | background_tasks:fetch_rss_articles:31 - 正在抓取RSS源: 宝玉
+2025-06-20 17:23:24 | INFO | background_tasks:fetch_rss_articles:77 - 从 宝玉 获取到 50 篇文章
+2025-06-20 17:23:24 | INFO | background_tasks:fetch_rss_articles:31 - 正在抓取RSS源: 阮一峰
+2025-06-20 17:23:55 | ERROR | background_tasks:fetch_rss_articles:80 - 抓取RSS源 阮一峰 失败: 
+2025-06-20 17:23:55 | ERROR | background_tasks:run_full_update_cycle:315 - 处理源 阮一峰 失败: 抓取RSS源失败: 
+2025-06-20 17:23:55 | INFO | background_tasks:run_full_update_cycle:317 - 本次抓取到 0 篇新文章
+2025-06-20 17:23:55 | INFO | background_tasks:run_full_update_cycle:320 - 2. 开始向量化文章...
+2025-06-20 17:23:55 | INFO | background_tasks:vectorize_articles:112 - 开始向量化 0 篇文章
+2025-06-20 17:23:55 | INFO | background_tasks:vectorize_articles:156 - 完成向量化 0 篇文章
+2025-06-20 17:23:55 | INFO | background_tasks:run_full_update_cycle:324 - 3. 开始AI评分...
+2025-06-20 17:23:55 | INFO | background_tasks:ai_score_articles:164 - 开始AI评分 0 篇文章
+2025-06-20 17:23:55 | INFO | background_tasks:ai_score_articles:209 - 完成AI评分 0 篇文章
+2025-06-20 17:23:55 | INFO | background_tasks:run_full_update_cycle:328 - 4. 开始计算推荐分数...
+2025-06-20 17:23:55 | INFO | background_tasks:calculate_final_scores_and_enqueue:241 - 开始计算 4 篇文章的推荐分数
+2025-06-20 17:23:55 | INFO | background_tasks:calculate_final_scores_and_enqueue:273 - 完成推荐计算，入队 0 篇文章
+2025-06-20 17:23:55 | INFO | background_tasks:run_full_update_cycle:333 - 数据库统计: {'total_sources': 2, 'total_articles': 56, 'vectorized_articles': 56, 'scored_articles': 56, 'interacted_articles': 0, 'unread_feed': 52, 'has_user_profile': True}
+2025-06-20 17:23:55 | INFO | background_tasks:run_full_update_cycle:335 - 本次任务完成 - 新文章: 0, 向量化: 0, 评分: 0, 入队: 0
+2025-06-20 17:23:55 | INFO | background_tasks:run_full_update_cycle:342 - === 后台任务周期完成 2025-06-20 17:23:55.745490 ===
