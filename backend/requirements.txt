@@ -39,3 +39,4 @@ flake8==6.1.0
 # Optional: if you need async database operations
 aiosqlite==0.19.0 
 aiolimiter
+aiohttp
