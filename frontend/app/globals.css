@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 道、通透、专注的色彩体系 */
+    --background: 210 20% 98%; /* 非常浅的米白/宣纸白，略带冷调 */
+    --foreground: 210 10% 23%; /* 深灰蓝，代替纯黑，更柔和 */
+    --card: 0 0% 100%; /* 纯白卡片，突出内容 */
+    --card-foreground: 210 10% 23%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 10% 23%;
+
+    /* 主色调调整为更沉稳的灰色 */
+    --primary: 210 10% 40%; /* 中性灰，用于主要操作元素 */
+    --primary-foreground: 0 0% 100%; /* 主操作文字用白色，保证对比度 */
+
+    --secondary: 210 15% 90%; /* 浅灰色，用于次要元素背景 */
+    --secondary-foreground: 210 10% 30%; /* 次要元素文字 */
+
+    --muted: 210 15% 94%; /* 更浅的灰色，用于分割线或提示背景 */
+    --muted-foreground: 210 10% 45%; /* 提示文字颜色 */
+
+    --accent: 180 30% 85%; /* 极淡的青色，用于点缀或状态提示，非常克制 */
+    --accent-foreground: 180 30% 25%;
+
+    --destructive: 0 60% 50%; /* 警示色保持相对清晰 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 15% 88%; /* 边框颜色更柔和 */
+    --input: 210 15% 96%; /* 输入框背景 */
+    --ring: 180 30% 50%; /* 焦点环颜色，使用淡青色系 */
+    --radius: 0.375rem; /* 圆角可以略微减小，增加一些硬朗感，但不过分 */
+  }
+
+  .dark {
+    /* 暗黑模式可以后续再精细调整，暂时保持默认或略作调整 */
+    --background: 210 10% 15%;
+    --foreground: 210 15% 90%;
+    --card: 210 10% 20%;
+    --card-foreground: 210 15% 90%;
+    --popover: 210 10% 18%;
+    --popover-foreground: 210 15% 90%;
+    --primary: 210 15% 80%;
+    --primary-foreground: 210 10% 10%;
+    --secondary: 210 10% 25%;
+    --secondary-foreground: 210 15% 85%;
+    --muted: 210 10% 22%;
+    --muted-foreground: 210 15% 65%;
+    --accent: 180 30% 40%;
+    --accent-foreground: 180 30% 90%;
+    --destructive: 0 50% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 10% 30%;
+    --input: 210 10% 25%;
+    --ring: 180 30% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* 考虑使用更具人文气息的字体，如果用户系统支持 */
+    /* font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Noto Sans SC"; */
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+      "Open Sans", "Helvetica Neue", sans-serif, "Noto Sans SC";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* 增加全局链接样式 */
+  a {
+    @apply text-primary hover:text-primary/80 transition-colors;
+  }
+}
+
+/* 自定义样式 */
+.prose {
+  @apply text-foreground; /* 使用更柔和的前景色 */
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  @apply text-foreground font-light; /* 标题也使用柔和前景色，保持轻盈感 */
+}
+
+.prose p {
+  @apply leading-relaxed text-foreground/80; /* 段落文字透明度降低，增加层次感 */
+}
+
+/* 卡片叠放效果 */
+.card-stack {
+  position: relative;
+  perspective: 1000px; /* 为3D翻页效果做准备 */
+}
+
+.card-current {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  opacity: 1;
+  transform: scale(1) rotateY(0deg); /* 增加rotateY为翻页准备 */
+  transform-origin: center;
+  /* 调整过渡，使其更舒缓，突出“道”的自然感 */
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1), transform 0.7s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s
+    ease-in-out;
+  will-change: transform, opacity;
+  backface-visibility: hidden; /* 优化3D动画性能 */
+  /* 卡片阴影调整，更柔和弥散 */
+  @apply shadow-xl shadow-stone-300/30;
+}
+
+.card-exit {
+  /* 模拟卡片被轻轻拂去或翻走的感觉 */
+  transition: transform 0.8s cubic-bezier(0.6, -0.28, 0.735, 0.045), opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  /* transform: translateX(80%) translateY(-10%) scale(0.90) rotateZ(5deg) rotateY(20deg) !important; */
+  transform: translateX(50%) scale(0.9) rotateZ(3deg) !important; /* 简化版拂去 */
+  opacity: 0 !important;
+  z-index: 5;
+}
+
+.card-reveal {
+  opacity: 0;
+  transform: scale(0.97); /* 初始略小，从下方“浮现” */
+  /* 动画更舒缓，延迟更精确，体现“通透”的清晰感 */
+  animation: cardRevealAnimation 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.4s forwards;
+  z-index: 10;
+  backface-visibility: hidden;
+}
+
+@keyframes cardRevealAnimation {
+  0% {
+    opacity: 0;
+    transform: scale(0.97) translateY(10px); /* 从下方轻微上移 */
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0px);
+  }
+}
+
+/* 为深度阅读模式添加淡入效果 */
+.reading-enter {
+  /* 动画更柔和，体现“专注”的沉浸感 */
+  animation: fadeInSmoothUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInSmoothUp {
+  from {
+    opacity: 0.6;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 按钮按下时的微妙反馈 */
+.button-press {
+  transform: scale(0.97);
+  transition: transform 0.15s ease-out;
+}
+
+/* 自定义滚动条，更纤细，融入背景 */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* 完全透明 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground); /* 使用柔和的提示文字颜色 */
+  border-radius: 10px;
+  transition: background 0.2s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground); /* 悬停时更明显 */
+}
+
+/* 全局背景，可以考虑淡雅的纹理或渐变 */
+body {
+  /* background-image: linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted))); */
+  /* 或使用一张非常细微的宣纸纹理图片作为背景 */
+  /* background-image: url('/placeholder.svg?width=100&height=100'); */
+  /* background-repeat: repeat; */
+}
+
+/* 增加一个全局的容器内边距，让内容呼吸 */
+.page-container {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+/* 标题样式调整 */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-light tracking-tight; /* 更轻盈的字重和略微收紧的字间距 */
+}

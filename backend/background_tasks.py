@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import feedparser
 import re
-import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from contextlib import asynccontextmanager
@@ -30,28 +29,22 @@ class BackgroundTaskManager:
         try:
             app_logger.info(f"正在抓取RSS源: {source['name']}")
 
-            # 1. 使用 aiohttp 抓取内容
-            async with aiohttp.ClientSession() as session:
-                async with session.get(source['url'], timeout=30) as response:
-                    if response.status != 200:
-                        app_logger.warning(f"抓取 {source['name']} 失败，状态码: {response.status}")
-                        return []
-                    feed_content = await response.text()
-
-            # 2. 将抓取到的文本内容交给 feedparser 解析
-            feed = feedparser.parse(feed_content)
+            feed = feedparser.parse(source['url'])
             
             if feed.bozo and feed.bozo_exception:
                 app_logger.warning(f"RSS源 {source['name']} 解析警告: {feed.bozo_exception}")
             
-            for entry in feed.entries:
+            # 限制最多获取20个最新条目
+            entries = feed.entries[:20]
+            
+            for entry in entries:
                 url = entry.get('link', '')
                 title = entry.get('title', '')
                 content = entry.get('summary', '') or entry.get('description', '')
                 
                 # 清理内容
                 title = clean_text(title)
-                content = clean_text(content)
+                # content = clean_text(content)
                 
                 # 尝试获取发布时间
                 published_at = None
