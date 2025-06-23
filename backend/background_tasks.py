@@ -2,7 +2,6 @@ import asyncio
 import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-import feedparser
 import re
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -10,11 +9,12 @@ from contextlib import asynccontextmanager
 
 from models import DatabaseManager
 from llm_client import get_embedding, ai_chat, num_tokens_from_string
-from prompt import SYSTEM_PROMPT, BASE_PROMPT
+from prompt import SYSTEM_PROMPT, BASE_PROMPT, GEN_HTML_PROMPT
 from config import settings
 from logger import app_logger
 from utils import clean_text, cosine_similarity_score
 from exceptions import RSSFetchException, LLMException, VectorException
+from reader.reader import article_reader
 
 class BackgroundTaskManager:
     def __init__(self):
@@ -22,59 +22,6 @@ class BackgroundTaskManager:
         self.scheduler = AsyncIOScheduler()
         self.is_running = False
         
-    async def fetch_rss_articles(self, source: Dict) -> List[Dict]:
-        """从RSS源获取文章"""
-        articles = []
-
-        try:
-            app_logger.info(f"正在抓取RSS源: {source['name']}")
-
-            feed = feedparser.parse(source['url'])
-            
-            if feed.bozo and feed.bozo_exception:
-                app_logger.warning(f"RSS源 {source['name']} 解析警告: {feed.bozo_exception}")
-            
-            # 限制最多获取20个最新条目
-            entries = feed.entries[:20]
-            
-            for entry in entries:
-                url = entry.get('link', '')
-                title = entry.get('title', '')
-                content = entry.get('summary', '') or entry.get('description', '')
-                
-                # 清理内容
-                title = clean_text(title)
-                # content = clean_text(content)
-                
-                # 尝试获取发布时间
-                published_at = None
-                if hasattr(entry, 'published_parsed') and entry.published_parsed:
-                    try:
-                        published_at = datetime(*entry.published_parsed[:6])
-                    except (ValueError, TypeError):
-                        pass
-                elif hasattr(entry, 'updated_parsed') and entry.updated_parsed:
-                    try:
-                        published_at = datetime(*entry.updated_parsed[:6])
-                    except (ValueError, TypeError):
-                        pass
-                
-                if url and title:
-                    articles.append({
-                        'url': url,
-                        'title': title,
-                        'content': content,
-                        'published_at': published_at
-                    })
-                    
-            app_logger.info(f"从 {source['name']} 获取到 {len(articles)} 篇文章")
-            
-        except Exception as e:
-            app_logger.error(f"抓取RSS源 {source['name']} 失败: {e}")
-            raise RSSFetchException(f"抓取RSS源失败: {e}")
-            
-        return articles
-    
     async def store_articles(self, source_id: int, articles: List[Dict]) -> List[int]:
         """存储文章到数据库，返回新添加的文章ID列表"""
         new_article_ids = []
@@ -151,7 +98,24 @@ class BackgroundTaskManager:
     
     async def ai_score_articles(self) -> int:
         """对文章进行AI评分"""
-        articles = self.db.get_articles_without_ai_score()
+        # 直接查询没有AI评分的文章，确保包含新文章
+        import sqlite3
+        with sqlite3.connect(self.db.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # 查询score为NULL或者content不为空但score为NULL的文章
+            cursor.execute('''
+                SELECT * FROM articles 
+                WHERE (score IS NULL OR score = 0) 
+                AND content IS NOT NULL 
+                AND content != ''
+                ORDER BY created_at DESC
+                LIMIT 100
+            ''')
+            
+            articles = [dict(row) for row in cursor.fetchall()]
+        
         scored_count = 0
         
         app_logger.info(f"开始AI评分 {len(articles)} 篇文章")
@@ -160,6 +124,10 @@ class BackgroundTaskManager:
             try:
                 # 构建评分请求
                 content = article['content']
+                if not content or len(content.strip()) < 10:
+                    app_logger.warning(f"文章内容太短，跳过评分: {article['title'][:50]}...")
+                    continue
+                    
                 message = [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": BASE_PROMPT.format(content=content)}
@@ -252,8 +220,19 @@ class BackgroundTaskManager:
                 
                 # 判断是否达到入队阈值
                 if final_score >= settings.SCORE_THRESHOLD:
+                    # 进行AI排版
+                    formatted_content = await self.ai_format_article(article)
+                    
                     # 添加到推荐队列
                     if self.db.add_to_feed_queue(article['id'], final_score):
+                        # 直接用排版后的内容覆盖原来的content
+                        if formatted_content:
+                            try:
+                                self.db.update_article_content(article['id'], formatted_content)
+                                app_logger.debug(f"文章排版内容已更新: {article['title'][:50]}...")
+                            except Exception as e:
+                                app_logger.warning(f"更新排版内容失败: {e}")
+                        
                         enqueued_count += 1
                         app_logger.debug(f"文章入队: {article['title'][:50]}... "
                                       f"(最终分数: {final_score:.3f}, "
@@ -294,8 +273,8 @@ class BackgroundTaskManager:
             for source in sources:
                 if source['type'] == 'RSS':
                     try:
-                        # 抓取文章
-                        articles = await self.fetch_rss_articles(source)
+                        # 使用reader抓取文章
+                        articles = await article_reader.fetch_rss_articles(source)
                         
                         # 存储文章
                         new_article_ids = await self.store_articles(source['id'], articles)
@@ -309,13 +288,13 @@ class BackgroundTaskManager:
             
             app_logger.info(f"本次抓取到 {total_new_articles} 篇新文章")
             
-            # 2. 向量化
-            app_logger.info("2. 开始向量化文章...")
-            vectorized_count = await self.vectorize_articles()
-            
-            # 3. AI评分
-            app_logger.info("3. 开始AI评分...")
+            # 2. AI评分（优先进行，用于过滤低质量文章）
+            app_logger.info("2. 开始AI评分...")
             scored_count = await self.ai_score_articles()
+            
+            # 3. 向量化（只处理评分≥0.2的文章）
+            app_logger.info("3. 开始向量化高质量文章...")
+            vectorized_count = await self.vectorize_high_quality_articles()
             
             # 4. 计算最终分数并入队
             app_logger.info("4. 开始计算推荐分数...")
@@ -326,7 +305,7 @@ class BackgroundTaskManager:
             app_logger.info(f"数据库统计: {stats}")
             
             app_logger.info(f"本次任务完成 - 新文章: {total_new_articles}, "
-                          f"向量化: {vectorized_count}, 评分: {scored_count}, "
+                          f"评分: {scored_count}, 向量化: {vectorized_count}, "
                           f"入队: {enqueued_count}")
             
         except Exception as e:
@@ -366,6 +345,100 @@ class BackgroundTaskManager:
         self.scheduler.shutdown()
         self.is_running = False
         app_logger.info("后台任务调度器已停止")
+
+    async def vectorize_high_quality_articles(self) -> int:
+        """向量化高质量文章（AI评分≥0.3的文章）"""
+        # 获取AI评分≥0.2且未向量化的文章
+        import sqlite3
+        with sqlite3.connect(self.db.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT * FROM articles 
+                WHERE score >= 0.3 
+                AND embedding IS NULL
+                ORDER BY created_at DESC
+            ''')
+            
+            articles = [dict(row) for row in cursor.fetchall()]
+        
+        vectorized_count = 0
+        
+        app_logger.info(f"开始向量化 {len(articles)} 篇高质量文章（评分≥0.2）")
+        
+        for article in articles:
+            try:
+                # 组合标题和内容作为向量化文本
+                text = f"{article['title']}\n{article['content'] or ''}"
+                
+                # 检查token数量并截断
+                if num_tokens_from_string(text) > 8000:
+                    title = article['title']
+                    content = article['content'] or ''
+                    title_tokens = num_tokens_from_string(title)
+                    
+                    if title_tokens > 7500:
+                        text = title[:1000]
+                    else:
+                        available_tokens = 8000 - title_tokens - 10
+                        
+                        # 使用二分法精确截断内容
+                        left, right = 0, len(content)
+                        while left < right:
+                            mid = (left + right + 1) // 2
+                            test_text = f"{title}\n{content[:mid]}"
+                            if num_tokens_from_string(test_text) <= 8000:
+                                left = mid
+                            else:
+                                right = mid - 1
+                        
+                        text = f"{title}\n{content[:left]}"
+                
+                # 获取向量
+                embedding = get_embedding(text)
+                
+                # 保存向量
+                if self.db.update_article_embedding(article['id'], embedding):
+                    vectorized_count += 1
+                    app_logger.debug(f"高质量文章向量化成功: {article['title'][:50]}... (评分: {article['score']:.2f})")
+                
+                # 避免API限制
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                app_logger.error(f"向量化文章 {article['id']} 失败: {e}")
+        
+        app_logger.info(f"完成向量化 {vectorized_count} 篇高质量文章")
+        return vectorized_count
+
+    async def ai_format_article(self, article: Dict) -> Optional[str]:
+        """使用AI对文章进行排版美化"""
+        try:
+            content = article['content']
+            if not content or len(content.strip()) < 50:
+                app_logger.warning(f"文章内容太短，跳过排版: {article['title'][:50]}...")
+                return None
+            
+            # 构建排版请求
+            message = [
+                {"role": "user", "content": GEN_HTML_PROMPT.format(content=content)}
+            ]
+            
+            # 调用AI排版
+            formatted_content = ai_chat(message, model="google/gemini-2.5-flash-lite-preview-06-17")
+            
+            # 简单验证生成的HTML
+            if formatted_content and len(formatted_content) > 100:
+                app_logger.debug(f"文章排版成功: {article['title'][:50]}...")
+                return formatted_content
+            else:
+                app_logger.warning(f"AI排版返回内容异常: {article['title'][:50]}...")
+                return None
+                
+        except Exception as e:
+            app_logger.error(f"AI排版文章 {article['id']} 失败: {e}")
+            return None
 
 # 全局任务管理器实例
 task_manager = BackgroundTaskManager()

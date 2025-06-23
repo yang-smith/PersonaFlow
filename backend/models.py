@@ -252,6 +252,22 @@ class DatabaseManager:
             print(f"更新文章交互状态失败: {e}")
             return False
     
+    def update_article_content(self, article_id: int, content: str) -> bool:
+        """更新文章的排版内容"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE articles 
+                    SET content = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                ''', (content, article_id))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"更新文章排版内容失败: {e}")
+            return False
+
     def get_article_embedding(self, article_id: int) -> Optional[List[float]]:
         """获取文章的向量"""
         try:

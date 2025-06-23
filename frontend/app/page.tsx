@@ -178,9 +178,10 @@ export default function FeedPage() {
                   <span className="opacity-50">•</span>
                   <span>{currentArticle.published_at}</span>
                 </div>
-                <div className="text-foreground/80 leading-relaxed whitespace-pre-line text-base sm:text-lg">
-                  {currentArticle.content}
-                </div>
+                <div 
+                  className="text-foreground/80 leading-relaxed text-base sm:text-lg prose max-w-none"
+                  dangerouslySetInnerHTML={{ __html: currentArticle.content }}
+                />
               </>
             )}
           </article>

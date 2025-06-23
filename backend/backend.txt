@@ -61,7 +61,9 @@
 **核心流程:**
 
 1.  **抓取 (Fetch)**: 从 `Source` 表获取所有启用的源，抓取新文章。
-    这里RSS源可能返回的是摘要，统一用html转markdown方式
+    抓取(Fetch): 拿到文章的 url。
+    提取(Extract): (新增步骤) 用 readability-lxml 访问 url，提取出核心内容，得到一段干净的HTML。
+    转换(Convert): (新增步骤) 用 html-to-markdown 这类库，把干净的HTML转成Markdown。
 2.  **入库 (Store)**: 将新文章存入 `Article` 表，注意通过 `url` 避免重复。
 3.  **处理 (Process)**: 对每一篇新入库的文章：
     *   调用 `llm_client.get_embedding()` 生成文章向量，存入 `Article.embedding`。

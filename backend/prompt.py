@@ -35,3 +35,62 @@ BASE_PROMPT = """
   "summary": "<该文章的摘要（最多五句话）>"
 }}
 """
+
+GEN_HTML_PROMPT = """
+帮我将下面内容重新排版，保留原文的结构和内容，使用html和内联css让其美观。
+
+要求：
+遵循专注、沉浸式阅读的风格。
+直接输出HTML主体<body>部分，不要包含<html>和<head>标签。
+
+
+### 1. Typography (字体排印)
+- **Base Font:**
+  - `font-family`: Use a system-native, highly readable sans-serif font stack. For example: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif`
+  - `font-size`: `17px` for the main body text (`<p>`). All other font sizes should be relative to this baseline.
+  - `line-height`: `1.7` for body text. This is crucial for readability.
+- **Headings:**
+  - `<h1>`: `font-size: 1.8em; font-weight: 600;` (approx 30px)
+  - `<h2>`: `font-size: 1.5em; font-weight: 600;` (approx 25px)
+  - `<h3>`: `font-size: 1.2em; font-weight: 600;` (approx 20px)
+- **Links `<a>`:**
+  - Do not change the font style. Just apply the link color.
+  - `text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;`
+
+### 2. Colors (色彩)
+- **Text:** `#222222` (A deep, soft black)
+- **Links:** `#005FB8` (A calm, professional blue)
+- **Secondary Text (e.g., captions, timestamps):** `#666666` (A gentle gray)
+
+### 3. Spacing (间距)
+- **Paragraphs `<p>`:** `margin-bottom: 1.2em;`
+- **Headings `<h1>, <h2>, <h3>`:** `margin-top: 2em; margin-bottom: 0.8em;` (Ensure more space above a heading than below it)
+- **Lists `<ul>, <ol>`:** `padding-left: 1.5em;`
+- **Blockquotes `<blockquote>`:** `margin-left: 1em; padding-left: 1.5em;`
+
+### 4. Special Elements (特殊元素)
+- **Images `<img>`:**
+  - `max-width: 100%; height: auto; display: block;`
+  - `margin-top: 2em; margin-bottom: 2em;`
+  - `border-radius: 8px;` (Soft rounded corners)
+- **Blockquotes `<blockquote>`:**
+  - `border-left: 3px solid #EAEAEA;` (A subtle left border)
+  - Apply the `Secondary Text` color to the text inside.
+- **Code Blocks `<pre>`:**
+  - `background-color: #F5F5F5;`
+  - `padding: 1em;`
+  - `border-radius: 6px;`
+  - `font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;`
+  - `font-size: 0.9em;`
+  - `white-space: pre-wrap; word-wrap: break-word;` (Ensure code wraps and doesn't break the layout)
+- **Horizontal Rules `<hr>`:**
+  - `border: none; border-top: 1px solid #EAEAEA; margin: 2.5em 0;`
+
+
+  
+待重新排版的内容：
+{content}
+
+
+
+"""
