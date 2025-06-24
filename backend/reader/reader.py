@@ -49,7 +49,11 @@ class ArticleReader:
         try:
             app_logger.info(f"正在抓取RSS源: {source['name']}")
 
-            feed = feedparser.parse(source['url'])
+            # 使用 asyncio.wait_for 添加5秒超时限制
+            feed = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(None, feedparser.parse, source['url']),
+                timeout=10.0
+            )
             
             if feed.bozo and feed.bozo_exception:
                 app_logger.warning(f"RSS源 {source['name']} 解析警告: {feed.bozo_exception}")

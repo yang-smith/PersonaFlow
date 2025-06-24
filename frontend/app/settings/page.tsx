@@ -43,7 +43,7 @@ export default function SettingsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // 获取后端API地址
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://43.139.154.191:8000'
 
   useEffect(() => {
     loadData()
