@@ -7,7 +7,7 @@ import { Heart, BookOpen, X, Settings } from "lucide-react"
 import Link from "next/link"
 
 // API 配置
-const API_BASE_URL = "http://localhost:8000"
+const API_BASE_URL = "http://43.139.154.191:8000"
 
 interface Article {
   id: number
@@ -247,7 +247,7 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center pt-8 sm:pt-12 page-container">
       <header className="w-full max-w-2xl flex justify-between items-center mb-8 sm:mb-12">
-        <h1 className="text-2xl sm:text-3xl font-light text-foreground">格物</h1>
+        <h1 className="text-2xl sm:text-3xl font-light text-foreground">信流</h1>
         <Link href="/settings">
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
             <Settings className="w-5 h-5" />
