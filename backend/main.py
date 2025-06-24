@@ -14,6 +14,7 @@ from api_models import (
 )
 from llm_client import get_embedding
 from background_tasks import task_manager
+from logger import app_logger
 
 # 全局配置
 LEARNING_RATE = 0.01  # 用户向量学习率
@@ -173,6 +174,7 @@ async def get_sources(db: DatabaseManager = Depends(get_db)):
 @app.post("/api/sources", response_model=SourceResponse)
 async def create_source(
     source: SourceCreate,
+    background_tasks: BackgroundTasks,
     db: DatabaseManager = Depends(get_db)
 ):
     """添加一个新的订阅源"""
@@ -188,16 +190,63 @@ async def create_source(
         
         # 获取新创建的源信息
         sources = db.get_all_sources()
+        new_source = None
         for src in sources:
             if src['id'] == source_id:
-                return SourceResponse(**src)
+                new_source = src
+                break
                 
-        raise HTTPException(status_code=500, detail="创建成功但无法获取源信息")
+        if not new_source:
+            raise HTTPException(status_code=500, detail="创建成功但无法获取源信息")
+        
+        # 立即为新source启动抓取任务
+        background_tasks.add_task(fetch_new_source_articles, new_source)
+        
+        return SourceResponse(**new_source)
         
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建订阅源失败: {str(e)}")
+
+async def fetch_new_source_articles(source: dict):
+    """为新source抓取文章的后台任务"""
+    try:
+        from reader.reader import article_reader
+        
+        app_logger.info(f"开始为新source抓取文章: {source['name']}")
+        
+        if source['type'] == 'RSS':
+            # 使用reader抓取文章
+            articles = await article_reader.fetch_rss_articles(source=source, num_articles=10)
+            
+            # 存储文章
+            db = DatabaseManager()
+            new_article_ids = await task_manager.store_articles(source['id'], articles)
+            
+            # 更新源的最后抓取时间
+            db.update_source_last_fetched(source['id'])
+            
+            app_logger.info(f"新source {source['name']} 抓取完成，获得 {len(new_article_ids)} 篇新文章")
+            
+            # 如果有新文章，触发AI评分和向量化
+            if new_article_ids:
+                app_logger.info(f"开始处理新source的文章...")
+                
+                # AI评分
+                scored_count = await task_manager.ai_score_articles()
+                
+                # 向量化高质量文章
+                vectorized_count = await task_manager.vectorize_high_quality_articles()
+                
+                # 计算推荐分数并入队
+                enqueued_count = await task_manager.calculate_final_scores_and_enqueue()
+                
+                app_logger.info(f"新source处理完成 - 评分: {scored_count}, "
+                              f"向量化: {vectorized_count}, 入队: {enqueued_count}")
+        
+    except Exception as e:
+        app_logger.error(f"处理新source {source.get('name', 'Unknown')} 失败: {e}")
 
 @app.delete("/api/sources/{source_id}")
 async def delete_source(
@@ -206,8 +255,10 @@ async def delete_source(
 ):
     """删除一个订阅源"""
     try:
-        # 这里需要添加删除源的方法到 DatabaseManager
-        # 暂时返回成功响应
+        success = db.delete_source(source_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="订阅源不存在")
+        
         return ApiResponse(status="success", message=f"订阅源 {source_id} 已删除")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除订阅源失败: {str(e)}")

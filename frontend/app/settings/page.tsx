@@ -6,52 +6,32 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { ArrowLeft, Plus, Trash2, Save } from "lucide-react"
 import Link from "next/link"
 
 interface Source {
-  id: string
+  id: number
   name: string
   url: string
-  enabled: boolean
+  type: string
   description?: string
+  created_at?: string
+  updated_at?: string
+  last_fetched_at?: string
 }
 
-// 模拟数据
-// const mockSources: Source[] = [
-//   {
-//     id: "1",
-//     name: "哲思月刊",
-//     url: "https://philosophy-monthly.com/rss",
-//     enabled: true,
-//     description: "深度思考与人生哲学",
-//   },
-//   {
-//     id: "2",
-//     name: "生活美学",
-//     url: "https://lifestyle-aesthetics.com/feed",
-//     enabled: true,
-//     description: "极简生活与美学思考",
-//   },
-//   {
-//     id: "3",
-//     name: "科技人文",
-//     url: "https://tech-humanities.com/rss",
-//     enabled: false,
-//     description: "技术与人文的交汇点",
-//   },
-// ]
+const defaultPrompt = `你是一个真诚的人。
+你对第一性原理，多维度思考，批判性思考，逆向思维，系统理论、行为心理学、群体心理学、传播学、经济学、认知论、演化心理学、生物学、进化论、道家等领域都有深刻的见解。
+你同时是专业的开发者。曾经是自动化、机器学习学习专业的学生。
+同时也是一个投资者，对查理芒格理论、长期主义有着深刻的理解。
+你尊重事实，实事求是。
 
-// const defaultPrompt = `你是一位具有深度思考能力的AI助手，专注于为用户筛选和推荐高质量的内容。
+你对讲故事、人文、可能有启发的文章也感兴趣。
 
-// 在评估文章时，请重点关注：
-// 1. 思想深度：是否能引发深层思考
-// 2. 实用价值：是否对个人成长有帮助
-// 3. 文字质量：表达是否清晰优雅
-// 4. 独特视角：是否提供新颖的观点
-
-// 请用温和、深思熟虑的语调来撰写推荐理由和摘要，体现出对知识的敬畏和对读者的关怀。`
+雷点：
+1. 你讨厌夸大、煽情、不实信息和隐藏的商业广告（中间插入部分广告可以理解）。
+2. 你讨厌逻辑混乱、概念模糊的文章。
+3. 你讨厌煽动情绪、制造焦虑、利用人性弱点的"快餐内容"。`
 
 export default function SettingsPage() {
   const [sources, setSources] = useState<Source[]>([])
@@ -59,50 +39,155 @@ export default function SettingsPage() {
   const [newSource, setNewSource] = useState({ name: "", url: "", description: "" })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // 获取后端API地址
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
   useEffect(() => {
-    setTimeout(() => {
-      // setSources(mockSources); // Assuming API connected
-      // setPrompt(defaultPrompt); // Assuming API connected
-      setIsLoading(false)
-    }, 500)
+    loadData()
   }, [])
 
-  const handleToggleSource = async (id: string) => {
-    setSources((prev) => prev.map((source) => (source.id === id ? { ...source, enabled: !source.enabled } : source)))
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 200))
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      // 并行获取订阅源和提示词
+      const [sourcesRes, promptRes] = await Promise.all([
+        fetch(`${API_BASE}/api/sources`),
+        fetch(`${API_BASE}/api/settings/prompt`)
+      ])
+
+      if (!sourcesRes.ok) {
+        throw new Error(`获取订阅源失败: ${sourcesRes.status}`)
+      }
+      if (!promptRes.ok) {
+        throw new Error(`获取提示词失败: ${promptRes.status}`)
+      }
+
+      const sourcesData = await sourcesRes.json()
+      const promptData = await promptRes.json()
+
+      setSources(sourcesData)
+      setPrompt(promptData.prompt || defaultPrompt)
+    } catch (err) {
+      console.error('加载数据失败:', err)
+      setError(err instanceof Error ? err.message : '加载数据失败')
+      // 如果API调用失败，使用默认提示词
+      setPrompt(defaultPrompt)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDeleteSource = async (id: string) => {
-    setSources((prev) => prev.filter((source) => source.id !== id))
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 200))
+  const handleDeleteSource = async (id: number) => {
+    try {
+      setError(null)
+      setSuccessMessage(null)
+      
+      console.log(`正在删除订阅源 ID: ${id}`)
+      console.log(`API URL: ${API_BASE}/api/sources/${id}`)
+      
+      const response = await fetch(`${API_BASE}/api/sources/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      console.log(`删除响应状态: ${response.status}`)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('删除错误响应:', errorText)
+        
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { detail: errorText }
+        }
+        
+        throw new Error(errorData.detail || `删除失败: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('删除成功:', result)
+
+      // 成功删除后更新UI
+      setSources((prev) => prev.filter((source) => source.id !== id))
+      setSuccessMessage('订阅源已删除')
+      
+      // 3秒后清除成功消息
+      setTimeout(() => setSuccessMessage(null), 3000)
+      
+    } catch (err) {
+      console.error('删除订阅源失败:', err)
+      setError(err instanceof Error ? err.message : '删除订阅源失败')
+    }
   }
 
   const handleAddSource = async () => {
     if (!newSource.name || !newSource.url) return
 
-    const source: Source = {
-      id: Date.now().toString(),
-      name: newSource.name,
-      url: newSource.url,
-      description: newSource.description,
-      enabled: true,
+    try {
+      const response = await fetch(`${API_BASE}/api/sources`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newSource.name,
+          url: newSource.url,
+          type: 'RSS'
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || `添加失败: ${response.status}`)
+      }
+
+      const newSourceData = await response.json()
+      
+      setSources((prev) => [...prev, { ...newSourceData }])
+      setNewSource({ name: "", url: "", description: "" })
+    } catch (err) {
+      console.error('添加订阅源失败:', err)
+      setError(err instanceof Error ? err.message : '添加订阅源失败')
     }
-
-    setSources((prev) => [...prev, source])
-    setNewSource({ name: "", url: "", description: "" })
-
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 200))
   }
 
   const handleSavePrompt = async () => {
-    setIsSaving(true)
-    // 模拟API调用
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsSaving(false)
+    try {
+      setIsSaving(true)
+      setError(null)
+
+      const response = await fetch(`${API_BASE}/api/settings/prompt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: prompt
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || `保存失败: ${response.status}`)
+      }
+
+      // 可以添加成功提示
+      console.log('提示词保存成功')
+    } catch (err) {
+      console.error('保存提示词失败:', err)
+      setError(err instanceof Error ? err.message : '保存提示词失败')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (isLoading) {
@@ -124,30 +209,49 @@ export default function SettingsPage() {
         <h1 className="text-2xl sm:text-3xl font-light text-foreground">设定</h1>
       </header>
 
+      {error && (
+        <div className="max-w-3xl mx-auto mb-6">
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded flex items-center justify-between">
+            <span>{error}</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setError(null)}
+              className="h-auto p-1 text-destructive hover:text-destructive"
+            >
+              ×
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="max-w-3xl mx-auto mb-6">
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded flex items-center justify-between">
+            <span>{successMessage}</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSuccessMessage(null)}
+              className="h-auto p-1 text-green-800 hover:text-green-800"
+            >
+              ×
+            </Button>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-3xl mx-auto grid gap-6 sm:gap-8 md:grid-cols-2">
         <Card className="bg-card border-border shadow-lg shadow-stone-200/20">
-          {" "}
-          {/* 卡片样式调整 */}
           <CardHeader>
             <CardTitle className="text-lg font-light text-foreground">订阅源</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-              {" "}
-              {/* 增加滚动条 */}
               {sources.map((source) => (
                 <div key={source.id} className="p-4 bg-secondary/50 rounded-md border border-border/50">
                   <div className="flex items-center justify-between mb-1.5">
                     <h3 className="font-medium text-foreground text-sm">{source.name}</h3>
-                    <Switch
-                      checked={source.enabled}
-                      onCheckedChange={() => handleToggleSource(source.id)}
-                      // Shadcn switch already has good styling, ensure it matches theme
-                    />
-                  </div>
-                  {source.description && <p className="text-xs text-muted-foreground mb-1">{source.description}</p>}
-                  <p className="text-xs text-accent-foreground/70 font-mono break-all">{source.url}</p>
-                  <div className="text-right mt-2">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -158,8 +262,15 @@ export default function SettingsPage() {
                       移除
                     </Button>
                   </div>
+                  {source.description && <p className="text-xs text-muted-foreground mb-1">{source.description}</p>}
+                  <p className="text-xs text-accent-foreground/70 font-mono break-all">{source.url}</p>
                 </div>
               ))}
+              {sources.length === 0 && (
+                <p className="text-center text-muted-foreground text-sm py-8">
+                  暂无订阅源，请添加新源
+                </p>
+              )}
             </div>
 
             <div className="border-t border-border pt-5 space-y-3">

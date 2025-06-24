@@ -274,7 +274,7 @@ class BackgroundTaskManager:
                 if source['type'] == 'RSS':
                     try:
                         # 使用reader抓取文章
-                        articles = await article_reader.fetch_rss_articles(source)
+                        articles = await article_reader.fetch_rss_articles(source=source, num_articles=10)
                         
                         # 存储文章
                         new_article_ids = await self.store_articles(source['id'], articles)

@@ -43,7 +43,7 @@ GEN_HTML_PROMPT = """
 遵循专注、沉浸式阅读的风格。
 直接输出HTML主体<body>部分，不要包含<html>和<head>标签。
 
-
+遵循下面的排版设计：
 ### 1. Typography (字体排印)
 - **Base Font:**
   - `font-family`: Use a system-native, highly readable sans-serif font stack. For example: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif`
@@ -91,6 +91,5 @@ GEN_HTML_PROMPT = """
 待重新排版的内容：
 {content}
 
-
-
+你的输出：
 """

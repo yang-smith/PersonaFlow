@@ -14,15 +14,14 @@ interface Article {
   title: string
   content: string
   ai_summary: string
-  ai_rationale: string
+  ai_quality_score?: number
+  ai_rationale?: string
   published_at: string
   url: string
   source_name: string
   final_score?: number
 }
 
-// 删除模拟数据，改为从API获取
-// const mockArticles: Article[] = [...]
 
 export default function FeedPage() {
   const [articles, setArticles] = useState<Article[]>([])
@@ -145,7 +144,6 @@ export default function FeedPage() {
           </svg>
         </div>
         <h2 className="text-2xl font-light text-foreground mb-3">林间拾穗毕，愿君满载归。</h2>
-        <p className="text-muted-foreground text-sm mb-8">今日之阅已尽，静待明日新启。</p>
         <Link href="/settings">
           <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
             <Settings className="w-4 h-4 mr-2" />
@@ -258,7 +256,7 @@ export default function FeedPage() {
       </header>
 
       <main className="w-full max-w-2xl flex-grow">
-        <div className="relative card-stack h-[520px] sm:h-[550px]">
+        <div className="relative card-stack h-[480px] sm:h-[550px]">
           {currentArticle && (
             <Card
               key={currentArticle.id}
@@ -276,15 +274,17 @@ export default function FeedPage() {
                   </h2>
                 </div>
                 <div className="space-y-4">
-                  <div className="bg-secondary/50 p-4 rounded-md border-l-2 border-accent">
-                    <h3 className="text-xs text-accent-foreground font-medium mb-1.5">AI 推荐</h3>
-                    <p className="text-sm text-foreground/70 leading-relaxed">{currentArticle.ai_rationale}</p>
-                  </div>
+                  {currentArticle.ai_rationale && (
+                    <div className="bg-secondary/50 p-4 rounded-md border-l-2 border-accent">
+                      <h3 className="text-xs text-accent-foreground font-medium mb-1.5">AI 评价</h3>
+                      <p className="text-sm text-foreground/70 leading-relaxed">{currentArticle.ai_rationale}</p>
+                    </div>
+                  )}
 
                   <div>
-                    <h3 className="text-xs text-muted-foreground font-medium mb-1.5">摘要</h3>
+                    <h3 className="text-xs text-muted-foreground font-medium mb-1.5">内容摘要</h3>
                     <p className="text-sm text-foreground/70 leading-relaxed line-clamp-3 sm:line-clamp-4">
-                      {currentArticle.ai_summary}
+                      {currentArticle.ai_summary || "暂无摘要"}
                     </p>
                   </div>
                 </div>
@@ -298,35 +298,32 @@ export default function FeedPage() {
             </Card>
           )}
         </div>
-      </main>
 
-      <footer className="w-full max-w-2xl py-8">
-        <div className="flex justify-center gap-3 sm:gap-4 mb-6">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => handleAction("dislike")}
-            disabled={isTransitioning || isRevealingNext}
-            className="bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30 border-border rounded-full px-6 active:scale-95"
-          >
-            <X className="w-5 h-5 mr-2" />
-            不合意
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => handleAction("read")}
-            disabled={isTransitioning || isRevealingNext}
-            className="bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30 border-border rounded-full px-6 active:scale-95"
-          >
-            <BookOpen className="w-5 h-5 mr-2" />
-            下一篇
-          </Button>
-        </div>
-        <p className="text-center text-xs text-muted-foreground">
-          {articles.length > 0 ? `尚余 ${articles.length - 1 < 0 ? 0 : articles.length - 1} 篇待阅` : "今日已尽"}
-        </p>
-      </footer>
+        {currentArticle && (
+          <div className="relative z-10 flex justify-center gap-3 sm:gap-4 mt-[-180px] mb-6 opacity-95">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => handleAction("dislike")}
+              disabled={isTransitioning || isRevealingNext}
+              className="bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 border-border rounded-full px-6 active:scale-95 shadow-lg"
+            >
+              <X className="w-5 h-5 mr-2" />
+              不合意
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => handleAction("read")}
+              disabled={isTransitioning || isRevealingNext}
+              className="bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 border-border rounded-full px-6 active:scale-95 shadow-lg"
+            >
+              <BookOpen className="w-5 h-5 mr-2" />
+              下一篇
+            </Button>
+          </div>
+        )}
+      </main>
     </div>
   )
 }

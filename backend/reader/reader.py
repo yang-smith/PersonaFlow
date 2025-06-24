@@ -42,7 +42,7 @@ class ArticleReader:
             app_logger.error(f"通过 Jina 获取文章内容失败 {url}: {e}")
             return None
     
-    async def fetch_rss_articles(self, source: Dict) -> List[Dict]:
+    async def fetch_rss_articles(self, source: Dict, num_articles: int = 10) -> List[Dict]:
         """从RSS源获取文章"""
         articles = []
 
@@ -55,7 +55,7 @@ class ArticleReader:
                 app_logger.warning(f"RSS源 {source['name']} 解析警告: {feed.bozo_exception}")
             
             # 限制最多获取20个最新条目
-            entries = feed.entries[:20]
+            entries = feed.entries[:num_articles]
             
             for entry in entries:
                 url = entry.get('link', '')
