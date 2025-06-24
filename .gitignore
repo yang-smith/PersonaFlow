@@ -3,3 +3,4 @@ __pycache__
 venv
 backend/logs
 backend/personaflow.db
+*.db
