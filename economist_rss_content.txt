@@ -1,0 +1,34 @@
+RSS测试报告 - 2025-06-25 14:59:38
+==================================================
+RSS链接: https://feedx.net/rss/economist.xml
+状态码: 200
+条目数量: 4
+==================================================
+
+条目 1:
+------------------------------
+标题: The organised crime syndicates of the digital age | News
+链接: https://www.economist.com/news/2025/02/10/the-organised-crime-syndicates-of-the-digital-age
+发布时间: Tue, 11 Feb 2025 12:27:04 +0800
+描述: A handpicked article read aloud from the latest issue of The Economist. Many people assume scams are obvious and avoidable. But, as our new podcast series uncovers, the modern scam industry is sophist...
+
+条目 2:
+------------------------------
+标题: Why your investments are less diversified than you might think | News
+链接: https://www.economist.com/news/2025/02/05/why-your-investments-are-less-diversified-than-you-might-think
+发布时间: Thu, 06 Feb 2025 21:27:02 +0800
+描述: A handpicked article read aloud from the latest issue of The Economist. Building a diverse portfolio is a sensible investment strategy. On the surface, it appears easy to do, but as markets grow incre...
+
+条目 3:
+------------------------------
+标题: Donald Trump targets assistance to foreigners | Podcasts
+链接: https://www.economist.com/podcasts/2025/02/04/donald-trump-targets-assistance-to-foreigners
+发布时间: Wed, 05 Feb 2025 12:27:03 +0800
+描述: A handpicked article read aloud from the latest issue of The Economist. Donald Trump’s chaotic aid freeze has disrupted programs around the world and harmed America’s soft-power. Though the money goes...
+
+条目 4:
+------------------------------
+标题: Politicians around the world are embracing deregulation | Podcasts
+链接: https://www.economist.com/podcasts/2025/02/03/politicians-around-the-world-are-embracing-deregulation
+发布时间: Tue, 04 Feb 2025 12:27:03 +0800
+描述: A handpicked article read aloud from the latest issue of The Economist. Done right, eliminating burdensome rules could lead to greater freedom, faster economic growth lower prices and new technology. ...
