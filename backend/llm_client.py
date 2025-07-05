@@ -167,7 +167,7 @@ class AIChat:
         return kwargs
     
     def chat(self, message: Union[str, List[Dict]], 
-             model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+             model: str = "google/gemini-2.5-flash", 
              response_format: str = 'NOT_GIVEN', 
              tools: Optional[List] = None) -> str:
         """同步聊天完成"""
@@ -179,7 +179,7 @@ class AIChat:
         return MessageProcessor.process_response(chat_completion.choices[0].message)
     
     async def chat_async(self, message: Union[str, List[Dict]], 
-                        model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+                        model: str = "google/gemini-2.5-flash", 
                         response_format: str = 'NOT_GIVEN', 
                         tools: Optional[List] = None) -> str:
         """异步聊天完成"""
@@ -198,7 +198,7 @@ class AIChat:
             raise TimeoutError(f"API request timed out after {AIConfig.DEFAULT_TIMEOUT} seconds")
     
     def chat_stream(self, message: Union[str, List[Dict]], 
-                   model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+                   model: str = "google/gemini-2.5-flash", 
                    response_format: str = 'NOT_GIVEN',
                    tools: Optional[List] = None) -> Generator[str, None, None]:
         """流式聊天完成"""
@@ -216,7 +216,7 @@ class AIChat:
                 client.close()
     
     async def chat_stream_async(self, message: Union[str, List[Dict]], 
-                               model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+                               model: str = "google/gemini-2.5-flash", 
                                response_format: str = 'NOT_GIVEN',
                                tools: Optional[List] = None) -> AsyncGenerator[str, None]:
         """异步流式聊天完成"""
@@ -238,28 +238,28 @@ class AIChat:
 _ai_chat = AIChat()
 
 def ai_chat(message: Union[str, List[Dict]], 
-            model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+            model: str = "google/gemini-2.5-flash", 
             response_format: str = 'NOT_GIVEN', 
             tools: Optional[List] = None) -> str:
     """同步聊天完成 - 便捷函数"""
     return _ai_chat.chat(message, model, response_format, tools)
 
 async def ai_chat_async(message: Union[str, List[Dict]], 
-                       model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+                       model: str = "google/gemini-2.5-flash", 
                        response_format: str = 'NOT_GIVEN', 
                        tools: Optional[List] = None) -> str:
     """异步聊天完成 - 便捷函数"""
     return await _ai_chat.chat_async(message, model, response_format, tools)
 
 def ai_chat_stream(message: Union[str, List[Dict]], 
-                  model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+                  model: str = "google/gemini-2.5-flash", 
                   response_format: str = 'NOT_GIVEN',
                   tools: Optional[List] = None) -> Generator[str, None, None]:
     """流式聊天完成 - 便捷函数"""
     return _ai_chat.chat_stream(message, model, response_format, tools)
 
 async def ai_chat_stream_async(message: Union[str, List[Dict]], 
-                              model: str = "google/gemini-2.5-flash-preview-05-20:thinking", 
+                              model: str = "google/gemini-2.5-flash", 
                               response_format: str = 'NOT_GIVEN',
                               tools: Optional[List] = None) -> AsyncGenerator[str, None]:
     """异步流式聊天完成 - 便捷函数"""
