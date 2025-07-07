@@ -1,5 +1,5 @@
 """
-测试短期记忆晋升逻辑
+测试短期记忆晋升逻辑和读取接口
 """
 import os
 import sys
@@ -41,51 +41,68 @@ def create_real_conversation_states():
     ]
 
 
-def view_all_long_term_memories(memory_system, user_id):
-    """查看所有长期记忆的详细信息"""
-    print("\n=== 查看所有长期记忆 ===")
+def view_cognitive_model(memory_system, user_id):
+    """查看认知模型的详细信息"""
+    print("\n=== 查看认知模型 ===")
     
     try:
-        # 获取所有长期记忆
-        long_memories = memory_system.long_term_mgr.get_all_memories(user_id)
+        # 获取完整认知模型
+        cognitive_model = memory_system.long_term_mgr.get_cognitive_model(user_id)
         
-        if not long_memories:
-            print("没有找到长期记忆")
+        if not cognitive_model.strip():
+            print("没有找到认知模型")
             return
         
-        print(f"共找到 {len(long_memories)} 条长期记忆：")
+        print(f"认知模型总长度: {len(cognitive_model)} 字符")
         print("-" * 80)
         
-        for i, memory in enumerate(long_memories, 1):
-            print(f"记忆 {i}:")
-            print(f"  ID: {memory.id}")
-            print(f"  HP: {memory.hp}")
-            print(f"  时间: {memory.timestamp}")
-            print(f"  内容: {memory.content}")
-            print(f"  向量维度: {len(memory.embedding) if memory.embedding else 0}")
-            print("-" * 80)
+        # 分别显示各个部分
+        bedrock = memory_system.long_term_mgr.get_bedrock_model(user_id)
+        evolutionary = memory_system.long_term_mgr.get_evolutionary_model(user_id)
+        dynamic = memory_system.long_term_mgr.get_dynamic_model(user_id)
+        
+        if bedrock:
+            print("【基石模型 Bedrock】:")
+            print(bedrock)
+            print("-" * 40)
+        
+        if evolutionary:
+            print("【演化模型 Evolutionary】:")
+            print(evolutionary)
+            print("-" * 40)
+        
+        if dynamic:
+            print("【动态模型 Dynamic】:")
+            print(dynamic)
+            print("-" * 40)
+        
+        print("\n【完整认知模型】:")
+        print(cognitive_model)
+        print("-" * 80)
             
     except Exception as e:
-        print(f"查看长期记忆失败: {e}")
+        print(f"查看认知模型失败: {e}")
 
 
-def test_promotion_logic():
-    """测试短期记忆晋升逻辑"""
-    print("=== 测试短期记忆晋升逻辑 ===")
+def test_memory_system():
+    """测试记忆系统的完整流程"""
+    print("=== 测试记忆系统完整流程 ===")
     
-    # 配置：低阈值，低数量限制
+    # 配置：低阈值，低数量限制，批量晋升
     config = MemoryConfig()
     config.STATES_TOKEN_THRESHOLD = 200
     config.SHORT_TERM_MAX_COUNT = 2  # 最多2条短期记忆
+    config.PROMOTION_BATCH_SIZE = 2  # 每次晋升2条
     
     memory_system = MemorySystem(config=config)
-    user_id = "promotion_test"
+    user_id = "default"
     
-    print(f"配置: 阈值={config.STATES_TOKEN_THRESHOLD}, 最大短期记忆={config.SHORT_TERM_MAX_COUNT}")
+    print(f"配置: 阈值={config.STATES_TOKEN_THRESHOLD}, 最大短期记忆={config.SHORT_TERM_MAX_COUNT}, 批量晋升={config.PROMOTION_BATCH_SIZE}")
     
-    # 添加多条记忆，触发晋升
+    # 1. 测试写入接口 - 添加多条记忆，触发晋升
+    print("\n--- 阶段1: 测试写入接口 ---")
     for i in range(4):
-        print(f"\n--- 第{i+1}次添加记忆 ---")
+        print(f"\n第{i+1}次调用 update_memory:")
         
         if i == 0:
             # 第一次使用真实对话数据
@@ -103,41 +120,57 @@ def test_promotion_logic():
                 }
             ]
         
-        print(f"States数量: {len(states)}")
+        print(f"  输入states数量: {len(states)}")
         memory_system.update_memory(states, user_id)
         
-        stats = memory_system.get_memory_stats(user_id)
-        print(f"当前统计: 短期={stats['short_term']['count']}, 长期={stats['long_term']['count']}")
+        # 检查短期记忆数量
+        short_memories = memory_system.short_term_mgr.get_recent_memories(user_id, limit=20)
+        print(f"  当前短期记忆数量: {len(short_memories)}")
         
-        # 检查是否发生晋升
-        if stats['long_term']['count'] > 0:
-            print("✅ 检测到长期记忆生成（晋升发生）")
-        
-        # 检查短期记忆是否超限
-        if stats['short_term']['count'] > config.SHORT_TERM_MAX_COUNT:
-            print("⚠️ 短期记忆超过限制但未晋升")
+        # 检查是否有长期记忆
+        cognitive_model = memory_system.long_term_mgr.get_cognitive_model(user_id)
+        if cognitive_model.strip():
+            print(f"  ✅ 检测到认知模型生成（长度: {len(cognitive_model)} 字符）")
+        else:
+            print(f"  ⏳ 暂无认知模型")
     
-    # 最终统计
-    final_stats = memory_system.get_memory_stats(user_id)
-    print(f"\n最终统计: 短期={final_stats['short_term']['count']}, 长期={final_stats['long_term']['count']}")
+    # 2. 测试读取接口
+    print("\n--- 阶段2: 测试读取接口 ---")
+    test_queries = [
+        "赚钱系统",
+        "痛点和商业模式", 
+        "AI技术应用",
+        "用户价值和成长"
+    ]
     
-    if final_stats['long_term']['count'] > 0:
-        print("✅ 晋升逻辑工作正常")
-        # 查看所有长期记忆的详细信息
-        view_all_long_term_memories(memory_system, user_id)
-    else:
-        print("❌ 晋升逻辑未触发")
+    for query in test_queries:
+        print(f"\n查询: '{query}'")
+        relevant_memories = memory_system.get_relevant_memories(query, user_id)
+        print(f"返回结果: {relevant_memories}")
+    
+    # 3. 查看最终状态
+    print("\n--- 阶段3: 查看最终状态 ---")
+    short_memories = memory_system.short_term_mgr.get_recent_memories(user_id, limit=20)
+    print(f"最终短期记忆数量: {len(short_memories)}")
+    
+    for i, memory in enumerate(short_memories, 1):
+        print(f"  短期记忆{i}: {memory.content[:100]}...")
+    
+    # 查看认知模型
+    view_cognitive_model(memory_system, user_id)
+    
+
 
 
 if __name__ == "__main__":
     # 确保存储目录存在
     os.makedirs("memory_system/storage", exist_ok=True)
     
-    print("🚀 开始测试短期记忆晋升逻辑...\n")
+    print("🚀 开始测试记忆系统...\n")
     
     try:
-        test_promotion_logic()
-        print("\n🎉 晋升逻辑测试完成！")
+        test_memory_system()
+        print("\n🎉 记忆系统测试完成！")
         
     except Exception as e:
         print(f"\n❌ 测试失败: {e}")

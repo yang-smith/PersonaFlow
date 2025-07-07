@@ -1,10 +1,9 @@
 """
-统一的存储接口层 - 封装所有数据库操作
+简化的文件存储接口 - 使用文本文件存储记忆
 """
-import sqlite3
+import os
 import json
 import hashlib
-import numpy as np
 from typing import List, Optional, Any
 from datetime import datetime
 
@@ -13,214 +12,179 @@ from ..config import MemoryConfig
 
 
 class MemoryStore:
-    """统一的记忆存储接口"""
+    """简化的记忆存储接口"""
     
     def __init__(self, config: MemoryConfig):
         self.config = config
-        self._init_database()
+        # 直接使用当前文件所在目录作为存储目录
+        self.storage_dir = os.path.dirname(os.path.abspath(__file__))
+        os.makedirs(self.storage_dir, exist_ok=True)
     
-    def _init_database(self):
-        """初始化SQLite数据库"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        # 简化的记忆表
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS memories (
-                id TEXT PRIMARY KEY,
-                content TEXT NOT NULL,
-                embedding BLOB,
-                timestamp TEXT NOT NULL,
-                hp INTEGER DEFAULT 1,
-                user_id TEXT
-            )
-        ''')
-        
-        # 创建索引
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_memories_user_time ON memories(user_id, timestamp)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_memories_user_hp ON memories(user_id, hp DESC)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_memories_hp ON memories(hp)')
-        
-        conn.commit()
-        conn.close()
-    
-    def save_memory(self, memory: MemoryItem) -> bool:
-        """保存记忆条目"""
+    def save_short_term_memory(self, memory: MemoryItem) -> bool:
+        """保存短期记忆到JSON文件"""
         try:
-            conn = sqlite3.connect(self.config.DB_PATH)
-            cursor = conn.cursor()
+            file_path = os.path.join(self.storage_dir, f"short_term_{memory.user_id}.json")
             
-            embedding_blob = np.array(memory.embedding, dtype=np.float32).tobytes() if memory.embedding else None
+            # 读取现有记忆
+            memories = []
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    memories = json.load(f)
             
-            cursor.execute('''
-                INSERT OR REPLACE INTO memories 
-                (id, content, embedding, timestamp, hp, user_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                memory.id, memory.content, embedding_blob, 
-                memory.timestamp.isoformat(), memory.hp, memory.user_id
-            ))
+            # 添加新记忆
+            memory_dict = {
+                "id": memory.id,
+                "content": memory.content,
+                "timestamp": memory.timestamp.isoformat(),
+                "hp": memory.hp
+            }
+            memories.append(memory_dict)
             
-            conn.commit()
-            conn.close()
+            # 保存回文件
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(memories, f, ensure_ascii=False, indent=2)
+            
             return True
             
         except Exception as e:
-            print(f"保存记忆失败: {e}")
+            print(f"保存短期记忆失败: {e}")
             return False
     
-    def get_short_term_memories(self, user_id: str, limit: int = 5) -> List[MemoryItem]:
-        """获取短期记忆（HP=1）"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM memories 
-            WHERE user_id = ? AND hp = 1
-            ORDER BY timestamp DESC 
-            LIMIT ?
-        ''', (user_id, limit))
-        
-        results = cursor.fetchall()
-        conn.close()
-        
-        return [self._row_to_memory_item(row) for row in results]
-    
-    def get_long_term_memories(self, user_id: str, limit: int = 10) -> List[MemoryItem]:
-        """获取长期记忆（HP>1），按HP降序"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM memories 
-            WHERE user_id = ? AND hp > 1
-            ORDER BY hp DESC, timestamp DESC
-            LIMIT ?
-        ''', (user_id, limit))
-        
-        results = cursor.fetchall()
-        conn.close()
-        
-        return [self._row_to_memory_item(row) for row in results]
-    
-    def get_all_long_term_memories(self, user_id: str) -> List[MemoryItem]:
-        """获取所有长期记忆"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM memories 
-            WHERE user_id = ? AND hp > 1
-            ORDER BY hp DESC
-        ''', (user_id,))
-        
-        results = cursor.fetchall()
-        conn.close()
-        
-        return [self._row_to_memory_item(row) for row in results]
-    
-    def get_oldest_short_term_memory(self, user_id: str) -> Optional[MemoryItem]:
-        """获取最老的短期记忆"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM memories 
-            WHERE user_id = ? AND hp = 1
-            ORDER BY timestamp ASC 
-            LIMIT 1
-        ''', (user_id,))
-        
-        result = cursor.fetchone()
-        conn.close()
-        
-        return self._row_to_memory_item(result) if result else None
-    
-    def delete_memory(self, memory_id: str) -> bool:
-        """删除记忆"""
+    def get_short_term_memories(self, user_id: str) -> List[MemoryItem]:
+        """获取短期记忆"""
         try:
-            conn = sqlite3.connect(self.config.DB_PATH)
-            cursor = conn.cursor()
+            file_path = os.path.join(self.storage_dir, f"short_term_{user_id}.json")
             
-            cursor.execute('DELETE FROM memories WHERE id = ?', (memory_id,))
+            if not os.path.exists(file_path):
+                return []
             
-            conn.commit()
-            conn.close()
+            with open(file_path, 'r', encoding='utf-8') as f:
+                memories_data = json.load(f)
+            
+            memories = []
+            for data in memories_data:
+                memory = MemoryItem(
+                    id=data["id"],
+                    content=data["content"],
+                    timestamp=datetime.fromisoformat(data["timestamp"]),
+                    hp=data["hp"],
+                    user_id=user_id
+                )
+                memories.append(memory)
+            
+            # 按时间倒序排列
+            memories.sort(key=lambda x: x.timestamp, reverse=True)
+            return memories
+            
+        except Exception as e:
+            print(f"读取短期记忆失败: {e}")
+            return []
+    
+    def delete_short_term_memory(self, memory_id: str, user_id: str) -> bool:
+        """删除短期记忆"""
+        try:
+            file_path = os.path.join(self.storage_dir, f"short_term_{user_id}.json")
+            
+            if not os.path.exists(file_path):
+                return False
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                memories = json.load(f)
+            
+            # 过滤掉要删除的记忆
+            memories = [m for m in memories if m["id"] != memory_id]
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(memories, f, ensure_ascii=False, indent=2)
+            
             return True
             
         except Exception as e:
-            print(f"删除记忆失败: {e}")
+            print(f"删除短期记忆失败: {e}")
             return False
     
-    def update_memory_hp(self, memory_id: str, hp_delta: int):
-        """更新记忆HP"""
+    def save_long_term_memory(self, user_id: str, cognitive_model: str) -> bool:
+        """保存长期记忆认知模型"""
         try:
-            conn = sqlite3.connect(self.config.DB_PATH)
-            cursor = conn.cursor()
+            file_path = os.path.join(self.storage_dir, f"long_term_{user_id}.txt")
             
-            cursor.execute('''
-                UPDATE memories 
-                SET hp = MAX(0, hp + ?)
-                WHERE id = ?
-            ''', (hp_delta, memory_id))
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(cognitive_model)
             
-            conn.commit()
-            conn.close()
+            return True
             
         except Exception as e:
-            print(f"更新HP失败: {e}")
+            print(f"保存长期记忆失败: {e}")
+            return False
     
-    def cleanup_expired_memories(self) -> int:
-        """清理HP为0的记忆"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute('DELETE FROM memories WHERE hp <= 0')
-        deleted_count = cursor.rowcount
-        
-        conn.commit()
-        conn.close()
-        
-        return deleted_count
+    def get_long_term_memory(self, user_id: str) -> str:
+        """获取长期记忆认知模型"""
+        try:
+            file_path = os.path.join(self.storage_dir, f"long_term_{user_id}.txt")
+            
+            if not os.path.exists(file_path):
+                return ""
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+                
+        except Exception as e:
+            print(f"读取长期记忆失败: {e}")
+            return ""
+            
+    def get_base_memory(self, user_id: str) -> str:
+        """获取基础记忆 - 从长期记忆中提取基石和演化部分"""
+        try:
+            # 获取完整的长期记忆认知模型
+            cognitive_model = self.get_long_term_memory(user_id)
+            
+            if not cognitive_model.strip():
+                return ""
+            
+            # 提取基石模型部分
+            bedrock_model = self._extract_section(cognitive_model, "Bedrock")
+            
+            # 提取演化模型部分
+            evolutionary_model = self._extract_section(cognitive_model, "Evolutionary")
+            
+            # 拼接基础记忆
+            base_memory = ""
+            
+            if bedrock_model:
+                base_memory += f"<Bedrock>\n{bedrock_model}\n</Bedrock>"
+            
+            if evolutionary_model:
+                if base_memory:
+                    base_memory += "\n\n"
+                base_memory += f"<Evolutionary>\n{evolutionary_model}\n</Evolutionary>"
+            
+            return base_memory
+            
+        except Exception as e:
+            print(f"获取基础记忆失败: {e}")
+            return ""
     
-    def decay_all_hp(self, user_id: str, decay_rate: float):
-        """衰减所有长期记忆的HP"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        # 只衰减长期记忆（HP > 1）
-        cursor.execute('''
-            UPDATE memories 
-            SET hp = CAST(hp * (1 - ?) AS INTEGER)
-            WHERE user_id = ? AND hp > 1
-        ''', (decay_rate, user_id))
-        
-        conn.commit()
-        conn.close()
+    def _extract_section(self, model: str, section_name: str) -> str:
+        """从认知模型中提取特定章节"""
+        import re
+        pattern = f'<{section_name}>(.*?)</{section_name}>'
+        match = re.search(pattern, model, re.DOTALL)
+        return match.group(1).strip() if match else ""
     
     def count_short_term_memories(self, user_id: str) -> int:
         """统计短期记忆数量"""
-        conn = sqlite3.connect(self.config.DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT COUNT(*) FROM memories WHERE user_id = ? AND hp = 1', (user_id,))
-        count = cursor.fetchone()[0]
-        
-        conn.close()
-        return count
+        memories = self.get_short_term_memories(user_id)
+        return len(memories)
     
-    def _row_to_memory_item(self, row) -> MemoryItem:
-        """将数据库行转换为MemoryItem对象"""
-        embedding = np.frombuffer(row[2], dtype=np.float32).tolist() if row[2] else []
+    def get_oldest_short_term_memory(self, user_id: str) -> Optional[MemoryItem]:
+        """获取最老的短期记忆"""
+        memories = self.get_short_term_memories(user_id)
+        if not memories:
+            return None
         
-        return MemoryItem(
-            id=row[0],
-            content=row[1],
-            embedding=embedding,
-            timestamp=datetime.fromisoformat(row[3]),
-            hp=row[4],
-            user_id=row[5]
-        )
+        # 按时间正序排列，取第一个
+        memories.sort(key=lambda x: x.timestamp)
+        return memories[0]
     
     @staticmethod
     def hash_states(states: List[Any]) -> str:

@@ -1,125 +1,140 @@
 """
-长期记忆模块 - 实现"新陈代谢模型"，管理记忆条的HP、晋升和遗忘
+长期记忆模块 - AI的自适应认知模型
 """
 from typing import List, Optional
 from datetime import datetime
 
-from ..Item import MemoryItem
 from ..storage.memory_store import MemoryStore
 from ..utils.llm_adapter import LLMAdapter
 from ..config import MemoryConfig
+from ..Item import MemoryItem
 
 
 class LongTermMemoryManager:
-    """长期记忆管理器"""
+    """长期记忆管理器 - 自适应认知模型"""
     
     def __init__(self, config: MemoryConfig, store: MemoryStore, llm_adapter: LLMAdapter):
         self.config = config
         self.store = store
         self.llm_adapter = llm_adapter
-        
-        # 内存热缓存
-        self._hot_cache: dict = {}  # user_id -> List[MemoryItem]
     
-    def promote_from_short_term(self, short_memory: MemoryItem) -> List[MemoryItem]:
-        """将短期记忆晋升为长期记忆，可能生成多条长期记忆"""
+    def cognitive_reconstruction(self, user_id: str, short_memory: MemoryItem) -> bool:
+        """认知重构 - 核心机制"""
         try:
-            print(f"开始晋升短期记忆: {short_memory.id}")
+            print(f"开始认知重构: {user_id}")
             
-            # 使用LLM提取长期事实，返回多条记忆
-            extracted_memories = self.llm_adapter.extract_long_term_facts(short_memory.content)
+            # 获取当前认知模型
+            current_model = self.store.get_long_term_memory(user_id)
             
-            if not extracted_memories:
-                print("没有提取到长期记忆")
-                return []
+            if not current_model.strip():
+                # 初始化认知模型
+                current_model = self._initialize_cognitive_model()
             
-            saved_memories = []
-            for long_content, initial_hp in extracted_memories:
-                # 创建长期记忆（HP > 1）
-                long_memory = MemoryItem(
-                    content=long_content,
-                    embedding=short_memory.embedding,  # 复用向量
-                    timestamp=short_memory.timestamp,
-                    hp=initial_hp,  # 长期记忆的HP > 1
-                    user_id=short_memory.user_id
-                )
-                
-                # 保存到存储
-                if self.store.save_memory(long_memory):
-                    print(f"长期记忆已保存: {long_memory.id}, HP: {initial_hp}")
-                    print(f"内容: {long_content[:100]}...")
-                    saved_memories.append(long_memory)
+            # 构建带时间信息的新刺激
+            timestamp_str = short_memory.timestamp.strftime("%Y年%m月%d日 %H:%M")
+            new_stimuli_with_time = f"[{timestamp_str}] {short_memory.content}"
+            
+            # 执行认知重构
+            new_model = self.llm_adapter.cognitive_reconstruction(current_model, new_stimuli_with_time)
+            
+            if new_model.strip():
+                # 原子性替换
+                success = self.store.save_long_term_memory(user_id, new_model)
+                if success:
+                    print(f"认知重构完成: {user_id} (时间: {timestamp_str})")
+                    print(f"新模型长度: {len(new_model)} 字符")
+                    return True
                 else:
-                    print(f"长期记忆保存失败: {long_content[:50]}...")
-            
-            if saved_memories:
-                # 更新热缓存
-                self._update_hot_cache(short_memory.user_id)
-            
-            return saved_memories
+                    print("认知模型保存失败")
+                    return False
+            else:
+                print("LLM未生成有效的认知模型")
+                return False
                 
         except Exception as e:
-            print(f"晋升失败: {e}")
-            return []
+            print(f"认知重构失败: {e}")
+            return False
     
-    def get_top_memories(self, user_id: str, limit: int = None) -> List[MemoryItem]:
-        """获取HP最高的长期记忆"""
-        if limit is None:
-            limit = self.config.LONG_TERM_HOT_CACHE_SIZE
-        
-        # 先从热缓存获取
-        if user_id in self._hot_cache:
-            cached = self._hot_cache[user_id]
-            if len(cached) >= limit:
-                return cached[:limit]
-        
-        # 从数据库获取
-        memories = self.store.get_long_term_memories(user_id, limit)
-        self._hot_cache[user_id] = memories
-        
-        return memories
+    def cognitive_reconstruction_batch(self, user_id: str, combined_content: str) -> bool:
+        """批量认知重构 - 处理多条短期记忆"""
+        try:
+            print(f"开始批量认知重构: {user_id}")
+            
+            # 获取当前认知模型
+            current_model = self.store.get_long_term_memory(user_id)
+            
+            if not current_model.strip():
+                # 初始化认知模型
+                current_model = self._initialize_cognitive_model()
+            
+            # 执行认知重构
+            new_model = self.llm_adapter.cognitive_reconstruction(current_model, combined_content)
+            
+            if new_model.strip():
+                # 原子性替换
+                success = self.store.save_long_term_memory(user_id, new_model)
+                if success:
+                    print(f"批量认知重构完成: {user_id}")
+                    print(f"新模型长度: {len(new_model)} 字符")
+                    return True
+                else:
+                    print("认知模型保存失败")
+                    return False
+            else:
+                print("LLM未生成有效的认知模型")
+                return False
+                
+        except Exception as e:
+            print(f"批量认知重构失败: {e}")
+            return False
     
-    def get_all_memories(self, user_id: str) -> List[MemoryItem]:
-        """获取所有长期记忆（用于深度搜索）"""
-        return self.store.get_all_long_term_memories(user_id)
+    def get_cognitive_model(self, user_id: str) -> str:
+        """获取完整认知模型"""
+        return self.store.get_long_term_memory(user_id)
     
-    def boost_memory_hp(self, memory: MemoryItem):
-        """增强记忆HP"""
-        memory.hp += self.config.HP_BOOST_ON_ACCESS
-        self.store.update_memory_hp(memory.id, self.config.HP_BOOST_ON_ACCESS)
-        
-        # 如果HP提升后可能进入热缓存，则更新缓存
-        self._update_hot_cache(memory.user_id)
+    def get_bedrock_model(self, user_id: str) -> str:
+        """提取基石模型部分"""
+        model = self.get_cognitive_model(user_id)
+        return self._extract_section(model, "Bedrock")
     
-    def decay_all_memories(self, user_id: str):
-        """衰减所有长期记忆的HP"""
-        self.store.decay_all_hp(user_id, self.config.HP_DECAY_RATE)
-        
-        # 更新热缓存
-        self._update_hot_cache(user_id)
+    def get_evolutionary_model(self, user_id: str) -> str:
+        """提取演化模型部分"""
+        model = self.get_cognitive_model(user_id)
+        return self._extract_section(model, "Evolutionary")
     
-    def cleanup_expired_memories(self) -> int:
-        """清理HP为0的记忆"""
-        deleted_count = self.store.cleanup_expired_memories()
-        
-        # 清空所有热缓存，强制重新加载
-        self._hot_cache.clear()
-        
-        return deleted_count
+    def get_dynamic_model(self, user_id: str) -> str:
+        """提取动态模型部分"""
+        model = self.get_cognitive_model(user_id)
+        return self._extract_section(model, "Dynamic")
     
-    def _update_hot_cache(self, user_id: str):
-        """更新热缓存"""
-        self._hot_cache[user_id] = self.store.get_long_term_memories(
-            user_id, self.config.LONG_TERM_HOT_CACHE_SIZE
-        )
+    def _extract_section(self, model: str, section_name: str) -> str:
+        """从认知模型中提取特定章节"""
+        import re
+        pattern = f'<{section_name}>(.*?)</{section_name}>'
+        match = re.search(pattern, model, re.DOTALL)
+        return match.group(1).strip() if match else ""
+    
+    def _initialize_cognitive_model(self) -> str:
+        """初始化空的认知模型结构"""
+        return """<Bedrock>
+
+</Bedrock>
+
+<Evolutionary>
+
+</Evolutionary>
+
+<Dynamic>
+
+</Dynamic>"""
     
     def clear_user_memories(self, user_id: str):
         """清除用户的长期记忆"""
-        # 清除热缓存
-        if user_id in self._hot_cache:
-            del self._hot_cache[user_id]
-        
-        # 从数据库删除长期记忆
-        memories = self.store.get_all_long_term_memories(user_id)
-        for memory in memories:
-            self.store.delete_memory(memory.id) 
+        try:
+            import os
+            file_path = os.path.join(self.store.storage_dir, f"long_term_{user_id}.txt")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            print(f"已清除用户 {user_id} 的长期记忆")
+        except Exception as e:
+            print(f"清除长期记忆失败: {e}") 

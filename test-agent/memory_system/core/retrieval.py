@@ -24,41 +24,29 @@ class MemoryRetriever:
         self.llm_adapter = llm_adapter
     
     def reflexive_recall(self, query: str, user_id: str) -> List[MemoryItem]:
-        """闪念检索 - 系统1：快速检索热缓存"""
+        """闪念检索 - 系统1：直觉反应，极简快速"""
         if not query.strip():
             return []
         
         print(f"闪念检索: {query[:50]}...")
         
-        # 获取查询向量
-        query_embedding = self.llm_adapter.get_text_embedding(query)
-        if not query_embedding:
+        # 只从短期记忆中检索
+        short_memories = self.short_term_mgr.get_recent_memories(user_id, limit=20)  # 获取更多候选
+        
+        if not short_memories:
+            print("没有短期记忆可检索")
             return []
         
+        # 计算关键词匹配得分
         candidates = []
-        
-        # 1. 搜索短期记忆热缓存
-        short_memories = self.short_term_mgr.get_recent_memories(user_id)
         for memory in short_memories:
-            if memory.embedding:
-                score = self._calculate_combined_score(query, query_embedding, memory)
-                if score >= self.config.RELEVANCE_THRESHOLD:
-                    candidates.append((score, memory))
+            score = self._calculate_keyword_score(query, memory.content)
+            if score > 0:  # 只要有匹配就加入候选
+                candidates.append((score, memory))
         
-        # 2. 搜索长期记忆热缓存
-        long_memories = self.long_term_mgr.get_top_memories(user_id)
-        for memory in long_memories:
-            if memory.embedding:
-                score = self._calculate_combined_score(query, query_embedding, memory)
-                if score >= self.config.RELEVANCE_THRESHOLD:
-                    candidates.append((score, memory))
-        
-        # 3. 按分数排序，取前N个
+        # 按得分排序，取前3个
         candidates.sort(key=lambda x: x[0], reverse=True)
-        results = [memory for score, memory in candidates[:self.config.MAX_MEMORIES_IN_CONTEXT]]
-        
-        # 4. 更新访问统计
-        self._boost_accessed_memories(results)
+        results = [memory for score, memory in candidates[:3]]
         
         print(f"闪念检索完成，找到 {len(results)} 条相关记忆")
         return results
@@ -97,8 +85,6 @@ class MemoryRetriever:
         candidates.sort(key=lambda x: x[0], reverse=True)
         results = [memory for score, memory in candidates[:self.config.DEEP_SEARCH_LIMIT]]
         
-        # 4. 更新访问统计
-        self._boost_accessed_memories(results)
         
         print(f"深度检索完成，找到 {len(results)} 条相关记忆")
         return results
@@ -120,7 +106,7 @@ class MemoryRetriever:
         return combined_score
     
     def _calculate_keyword_score(self, query: str, content: str) -> float:
-        """计算关键词匹配评分"""
+        """计算关键词匹配评分 - 简化版"""
         # 简单的关键词匹配
         query_words = set(re.findall(r'\w+', query.lower()))
         content_words = set(re.findall(r'\w+', content.lower()))
@@ -130,21 +116,20 @@ class MemoryRetriever:
         
         # 计算交集比例
         intersection = query_words.intersection(content_words)
-        union = query_words.union(content_words)
         
-        if not union:
+        if not intersection:
             return 0.0
         
-        # Jaccard相似度
-        jaccard_score = len(intersection) / len(union)
+        # 简单的匹配得分：匹配词数 / 查询词数
+        score = len(intersection) / len(query_words)
         
-        # 额外加分：完整词组匹配
+        # 额外加分：完整短语匹配
         phrase_bonus = 0.0
         for word in query_words:
             if word in content.lower():
                 phrase_bonus += 0.1
         
-        return min(jaccard_score + phrase_bonus, 1.0)
+        return score + phrase_bonus
     
     def _calculate_vector_score(self, query_embedding: List[float], 
                               memory_embedding: List[float]) -> float:
@@ -160,10 +145,4 @@ class MemoryRetriever:
             print(f"向量相似度计算失败: {e}")
             return 0.0
     
-    def _boost_accessed_memories(self, memories: List[MemoryItem]):
-        """增强被访问记忆的HP"""
-        for memory in memories:
-            if memory.is_short_term:
-                self.short_term_mgr.boost_memory_hp(memory)
-            else:
-                self.long_term_mgr.boost_memory_hp(memory) 
+ 

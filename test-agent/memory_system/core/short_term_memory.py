@@ -17,11 +17,8 @@ class ShortTermMemoryManager:
         self.config = config
         self.store = store
         self.llm_adapter = llm_adapter
-        
-        # 内存热缓存
-        self._hot_cache: dict = {}  # user_id -> List[MemoryItem]
     
-    def process_states(self, states: List[Any], user_id: str) -> Optional[MemoryItem]:
+    def process_states(self, states: List[Any], user_id: str, force_process: bool = False) -> Optional[MemoryItem]:
         """处理states，生成短期记忆"""
         if not states:
             return None
@@ -29,8 +26,8 @@ class ShortTermMemoryManager:
         # 估算token数量
         token_count = self.llm_adapter.estimate_token_count(states)
         
-        # 检查是否达到阈值
-        if token_count < self.config.STATES_TOKEN_THRESHOLD:
+        # 如果不是强制处理，检查是否达到阈值
+        if not force_process and token_count < self.config.STATES_TOKEN_THRESHOLD:
             print(f"Token数量({token_count})未达到阈值({self.config.STATES_TOKEN_THRESHOLD})")
             return None
         
@@ -39,27 +36,24 @@ class ShortTermMemoryManager:
         # 生成摘要
         summary_content = self.llm_adapter.summarize_states(states)
         
+        if not summary_content.strip():
+            print("LLM摘要生成失败")
+            return None
+        
         print(f"summary_content: {summary_content}")
         
-        # 创建短期记忆（HP=1）
+        # 创建短期记忆
         short_memory = MemoryItem(
             content=summary_content,
             timestamp=datetime.now(),
-            hp=1,  # 短期记忆的标志
+            hp=1,
             user_id=user_id
         )
         
-        # 生成向量
-        short_memory.embedding = self.llm_adapter.get_text_embedding(summary_content)
-        
         # 保存到存储
-        if self.store.save_memory(short_memory):
+        if self.store.save_short_term_memory(short_memory):
             print(f"短期记忆已保存: {short_memory.id}")
             print(f"摘要: {summary_content[:100]}...")
-            
-            # 更新热缓存
-            self._update_hot_cache(user_id)
-            
             return short_memory
         else:
             print("短期记忆保存失败")
@@ -70,24 +64,8 @@ class ShortTermMemoryManager:
         if limit is None:
             limit = self.config.SHORT_TERM_HOT_CACHE_SIZE
         
-        # 先从热缓存获取
-        if user_id in self._hot_cache:
-            cached = self._hot_cache[user_id]
-            if len(cached) >= limit:
-                return cached[:limit]
-        
-        # 从数据库获取
-        memories = self.store.get_short_term_memories(user_id, limit)
-        self._hot_cache[user_id] = memories
-        
-        return memories
-    
-    def get_short_term_total_tokens(self, user_id: str) -> int:
-        """获取短期记忆的token总数"""
-        total_tokens = 0
-        for memory in self._hot_cache[user_id]:
-            total_tokens += self.llm_adapter.estimate_token_count(memory.content)
-        return total_tokens
+        memories = self.store.get_short_term_memories(user_id)
+        return memories[:limit]
     
     def check_overflow(self, user_id: str) -> bool:
         """检查短期记忆是否超过数量限制"""
@@ -100,30 +78,25 @@ class ShortTermMemoryManager:
     
     def delete_memory(self, memory_id: str, user_id: str) -> bool:
         """删除短期记忆"""
-        success = self.store.delete_memory(memory_id)
-        if success:
-            # 更新热缓存
-            self._update_hot_cache(user_id)
-        return success
-    
-    def boost_memory_hp(self, memory: MemoryItem):
-        """增强记忆HP"""
-        memory.hp += self.config.HP_BOOST_ON_ACCESS
-        self.store.update_memory_hp(memory.id, self.config.HP_BOOST_ON_ACCESS)
-    
-    def _update_hot_cache(self, user_id: str):
-        """更新热缓存"""
-        self._hot_cache[user_id] = self.store.get_short_term_memories(
-            user_id, self.config.SHORT_TERM_HOT_CACHE_SIZE
-        )
+        return self.store.delete_short_term_memory(memory_id, user_id)
     
     def clear_user_memories(self, user_id: str):
         """清除用户的短期记忆"""
-        # 清除热缓存
-        if user_id in self._hot_cache:
-            del self._hot_cache[user_id]
+        try:
+            import os
+            file_path = os.path.join(self.store.storage_dir, f"short_term_{user_id}.json")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            print(f"已清除用户 {user_id} 的短期记忆")
+        except Exception as e:
+            print(f"清除短期记忆失败: {e}")
+    
+    def get_oldest_memories_batch(self, user_id: str, batch_size: int) -> List[MemoryItem]:
+        """获取最老的N条短期记忆（用于批量晋升）"""
+        memories = self.store.get_short_term_memories(user_id)
+        if not memories:
+            return []
         
-        # 从数据库删除短期记忆
-        memories = self.store.get_short_term_memories(user_id, 1000)  # 获取所有
-        for memory in memories:
-            self.store.delete_memory(memory.id) 
+        # 按时间正序排列，取前N个
+        memories.sort(key=lambda x: x.timestamp)
+        return memories[:batch_size] 

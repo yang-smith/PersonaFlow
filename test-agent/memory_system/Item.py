@@ -14,25 +14,5 @@ class MemoryItem:
     content: str = ""
     embedding: List[float] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.now)
-    hp: int = 1  # 默认HP为1（短期记忆）
+    hp: int = 1  # 保留HP字段用于兼容性
     user_id: str = ""
-
-    @property
-    def is_alive(self) -> bool:
-        """是否还活着"""
-        return self.hp > 0
-    
-    @property
-    def is_short_term(self) -> bool:
-        """是否为短期记忆（HP=1）"""
-        return self.hp == 1
-    
-    @property
-    def is_long_term(self) -> bool:
-        """是否为长期记忆（HP>1）"""
-        return self.hp > 1
-    
-    @property
-    def memory_type(self) -> str:
-        """记忆类型"""
-        return "short_term" if self.is_short_term else "long_term" 

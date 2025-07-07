@@ -7,6 +7,8 @@ from .registry import ToolRegistry
 from .implementations.availability import CheckAvailabilityTool
 from .implementations.booking import BookRoomTool  
 from .implementations.communication import TellUserTool
+from .implementations.get_relevant_memories import GetRelevantMemoriesTool
+from .implementations.web_search import WebSearchTool
 
 def get_all_tools() -> ToolRegistry:
     """
@@ -15,9 +17,11 @@ def get_all_tools() -> ToolRegistry:
     registry = ToolRegistry()
     
     # 注册所有工具
-    registry.register(CheckAvailabilityTool())
-    registry.register(BookRoomTool())
+    # registry.register(CheckAvailabilityTool())
+    # registry.register(BookRoomTool())
     # registry.register(TellUserTool())
+    registry.register(GetRelevantMemoriesTool())
+    registry.register(WebSearchTool())
     
     return registry
 

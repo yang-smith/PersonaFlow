@@ -73,7 +73,7 @@ def run_agent(initial_prompt=None):
 def process_user_input(state):
     """处理用户输入的函数"""
     iteration = 0
-    max_iterations = 10  # 防止无限循环
+    max_iterations = 3  # 防止无限循环
 
     while iteration < max_iterations:
         iteration += 1
@@ -81,6 +81,7 @@ def process_user_input(state):
         
         # 2. 上下文工程：用当前状态生成 prompt
         context = create_context_from_state(state)
+        print("context: \n", context)
 
         # 3. LLM 决策：把决策外包给 LLM
         try:
@@ -104,25 +105,15 @@ def process_user_input(state):
         results = []
         for call in calls:
             if call.get("success"):
-                result_event = {
-                    "type": "function_result", 
-                    "function_name": call["tool_name"], 
-                    "result": call["result"]
-                }
                 results.append(call)
                 print(f"工具 {call['tool_name']} 执行成功")
             else:
-                result_event = {
-                    "type": "function_error", 
-                    "function_name": call["tool_name"], 
-                    "error": call["error"]
-                }
                 results.append(call)
                 print(f"工具 {call['tool_name']} 执行失败: {call['error']}")
 
         # 6. 更新状态：用 Reducer 生成新状态
         if results:
-            new_event = {"type": "function_result", "results": results}
+            new_event = {"type": "tool_result", "results": results}
             state = reducer(state, new_event)
 
     if iteration >= max_iterations:
